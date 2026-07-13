@@ -50,6 +50,10 @@ __decorate([
 ], Subscription.prototype, "stripeCustomerId", void 0);
 __decorate([
     (0, mongoose_1.Prop)(),
+    __metadata("design:type", String)
+], Subscription.prototype, "stripePaymentIntentId", void 0);
+__decorate([
+    (0, mongoose_1.Prop)(),
     __metadata("design:type", Date)
 ], Subscription.prototype, "currentPeriodStart", void 0);
 __decorate([

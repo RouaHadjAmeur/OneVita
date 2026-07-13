@@ -6,7 +6,7 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { CreateSitterDto } from './dto/create-sitter.dto';
 import { UpdateSitterDto } from './dto/update-sitter.dto';
 import { UsersService } from '../users/users.service';
@@ -83,8 +83,15 @@ export class PetSittersService {
     return createdUser;
   }
 
-  async findAll(): Promise<UserDocument[]> {
-    const sitters = await this.petSitterModel.find().populate('user').exec();
+  async findAll(excludeUserId?: string): Promise<UserDocument[]> {
+    const filter =
+      excludeUserId && Types.ObjectId.isValid(excludeUserId)
+        ? { user: { $ne: new Types.ObjectId(excludeUserId) } }
+        : {};
+    const sitters = await this.petSitterModel
+      .find(filter)
+      .populate('user')
+      .exec();
     return sitters.map((sitter) => {
       const user = sitter.user as unknown as UserDocument;
       if (!user || !('_id' in user)) {

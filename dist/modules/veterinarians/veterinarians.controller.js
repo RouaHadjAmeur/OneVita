@@ -27,8 +27,8 @@ let VeterinariansController = class VeterinariansController {
     async create(createVetDto) {
         return this.veterinariansService.create(createVetDto);
     }
-    async findAll() {
-        return this.veterinariansService.findAll();
+    async findAll(excludeUserId) {
+        return this.veterinariansService.findAll(excludeUserId);
     }
     async findOne(id) {
         return this.veterinariansService.findOne(id);
@@ -57,8 +57,9 @@ __decorate([
 ], VeterinariansController.prototype, "create", null);
 __decorate([
     (0, common_1.Get)(),
+    __param(0, (0, common_1.Query)('excludeUserId')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
+    __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
 ], VeterinariansController.prototype, "findAll", null);
 __decorate([

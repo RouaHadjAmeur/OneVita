@@ -96,8 +96,8 @@ let BookingsService = class BookingsService {
         if (!booking) {
             throw new common_1.NotFoundException(`Booking with ID ${id} not found`);
         }
-        const ownerId = String(booking.owner);
-        const providerId = String(booking.provider);
+        const ownerId = String(booking.owner?._id ?? booking.owner);
+        const providerId = String(booking.provider?._id ?? booking.provider);
         if (ownerId !== userId && providerId !== userId) {
             throw new common_1.ForbiddenException('You do not have access to this booking');
         }

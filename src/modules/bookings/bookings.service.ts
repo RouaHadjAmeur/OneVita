@@ -108,8 +108,10 @@ export class BookingsService {
     }
 
     // Verify user has access to this booking
-    const ownerId = String(booking.owner);
-    const providerId = String(booking.provider);
+    // `owner` and `provider` are populated above, so compare their `_id`
+    // values rather than stringifying the populated Mongoose documents.
+    const ownerId = String((booking.owner as any)?._id ?? booking.owner);
+    const providerId = String((booking.provider as any)?._id ?? booking.provider);
     if (ownerId !== userId && providerId !== userId) {
       throw new ForbiddenException('You do not have access to this booking');
     }

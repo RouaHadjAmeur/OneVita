@@ -17,6 +17,7 @@ const jwt_refresh_strategy_1 = require("./strategies/jwt-refresh.strategy");
 const mail_module_1 = require("../mail/mail.module");
 const config_1 = require("@nestjs/config");
 const subscriptions_module_1 = require("../subscriptions/subscriptions.module");
+const fcm_module_1 = require("../fcm/fcm.module");
 let AuthModule = class AuthModule {
 };
 exports.AuthModule = AuthModule;
@@ -28,6 +29,7 @@ exports.AuthModule = AuthModule = __decorate([
             mail_module_1.MailModule,
             config_1.ConfigModule,
             subscriptions_module_1.SubscriptionsModule,
+            fcm_module_1.FcmModule,
         ],
         controllers: [auth_controller_1.AuthController],
         providers: [auth_service_1.AuthService, jwt_strategy_1.JwtStrategy, jwt_refresh_strategy_1.JwtRefreshStrategy],

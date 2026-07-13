@@ -1,29 +1,20 @@
 // src/modules/messages/messages.module.ts
+//
+// Chat messages/conversations are no longer stored in MongoDB — the app
+// reads/writes them directly in Firestore. This module now only hosts the
+// Firestore -> FCM notification bridge (see chat-notifications.service.ts).
 
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { MessagesController } from './messages.controller';
-import { MessagesService } from './messages.service';
-import { Message, MessageSchema } from './schemas/message.schema';
-import {
-  Conversation,
-  ConversationSchema,
-} from './schemas/conversation.schema';
 import { User, UserSchema } from '../users/schemas/user.schema';
-import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import { FcmModule } from '../fcm/fcm.module';
+import { ChatNotificationsService } from './chat-notifications.service';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([
-      { name: Message.name, schema: MessageSchema },
-      { name: Conversation.name, schema: ConversationSchema },
-      { name: User.name, schema: UserSchema },
-    ]),
+    MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
     FcmModule,
   ],
-  controllers: [MessagesController],
-  providers: [MessagesService, CloudinaryService],
-  exports: [MessagesService],
+  providers: [ChatNotificationsService],
 })
 export class MessagesModule {}

@@ -81,6 +81,7 @@ let SubscriptionsService = class SubscriptionsService {
         console.log(`🔍 Stripe initialized: ${!!this.stripe}`);
         let stripeSubscriptionId;
         let stripeCustomerId;
+        let stripePaymentIntentId;
         let clientSecret;
         let currentPeriodStart;
         let currentPeriodEnd;
@@ -130,6 +131,7 @@ let SubscriptionsService = class SubscriptionsService {
                     },
                 });
                 clientSecret = paymentIntent.client_secret || undefined;
+                stripePaymentIntentId = paymentIntent.id;
                 currentPeriodStart = new Date();
                 currentPeriodEnd = new Date();
                 currentPeriodEnd.setMonth(currentPeriodEnd.getMonth() + 1);
@@ -147,6 +149,7 @@ let SubscriptionsService = class SubscriptionsService {
             canceledOrExpiredSubscription.status = finalStatus;
             canceledOrExpiredSubscription.stripeSubscriptionId = stripeSubscriptionId;
             canceledOrExpiredSubscription.stripeCustomerId = stripeCustomerId;
+            canceledOrExpiredSubscription.stripePaymentIntentId = stripePaymentIntentId;
             canceledOrExpiredSubscription.currentPeriodStart = currentPeriodStart;
             canceledOrExpiredSubscription.currentPeriodEnd = currentPeriodEnd;
             canceledOrExpiredSubscription.cancelAtPeriodEnd = false;
@@ -159,6 +162,7 @@ let SubscriptionsService = class SubscriptionsService {
                 status: finalStatus,
                 stripeSubscriptionId,
                 stripeCustomerId,
+                stripePaymentIntentId,
                 currentPeriodStart,
                 currentPeriodEnd,
                 cancelAtPeriodEnd: false,
@@ -374,8 +378,9 @@ let SubscriptionsService = class SubscriptionsService {
             throw new common_1.NotFoundException('Subscription not found');
         }
         if (subscription.status !== subscription_schema_1.SubscriptionStatus.ACTIVE &&
-            subscription.status !== subscription_schema_1.SubscriptionStatus.EXPIRES_SOON) {
-            throw new common_1.BadRequestException('Only active or expires soon subscriptions can be canceled');
+            subscription.status !== subscription_schema_1.SubscriptionStatus.EXPIRES_SOON &&
+            subscription.status !== subscription_schema_1.SubscriptionStatus.PENDING) {
+            throw new common_1.BadRequestException('Only active, expires soon, or pending subscriptions can be canceled');
         }
         if (subscription.stripeSubscriptionId && this.stripe) {
             try {
@@ -522,6 +527,18 @@ let SubscriptionsService = class SubscriptionsService {
         console.log(`✅ Manually activated subscription for user ${userId}`);
         return this.mapToResponseDto(subscription);
     }
+    getSubscriptionPeriod(stripeSubscription) {
+        const item = stripeSubscription.items?.data?.[0];
+        const startSec = item?.current_period_start ?? stripeSubscription.current_period_start;
+        const endSec = item?.current_period_end ?? stripeSubscription.current_period_end;
+        if (startSec && endSec) {
+            return { start: new Date(startSec * 1000), end: new Date(endSec * 1000) };
+        }
+        const start = new Date();
+        const end = new Date(start);
+        end.setMonth(end.getMonth() + 1);
+        return { start, end };
+    }
     async updateSubscriptionFromStripe(stripeSubscription) {
         const subscription = await this.subscriptionModel.findOne({
             stripeSubscriptionId: stripeSubscription.id,
@@ -531,12 +548,9 @@ let SubscriptionsService = class SubscriptionsService {
             return;
         }
         const sub = stripeSubscription;
-        if (sub.current_period_start) {
-            subscription.currentPeriodStart = new Date(sub.current_period_start * 1000);
-        }
-        if (sub.current_period_end) {
-            subscription.currentPeriodEnd = new Date(sub.current_period_end * 1000);
-        }
+        const period = this.getSubscriptionPeriod(stripeSubscription);
+        subscription.currentPeriodStart = period.start;
+        subscription.currentPeriodEnd = period.end;
         subscription.cancelAtPeriodEnd = sub.cancel_at_period_end || false;
         switch (stripeSubscription.status) {
             case 'active':
@@ -697,15 +711,23 @@ let SubscriptionsService = class SubscriptionsService {
                     }
                 }
             }
-            const stripeSubscription = await this.stripe.subscriptions.create({
+            const existingSubscriptions = await this.stripe.subscriptions.list({
                 customer: customerId,
-                items: [{ price: this.subscriptionPriceId }],
-                default_payment_method: paymentMethodId || undefined,
+                status: 'active',
+                limit: 1,
             });
+            const stripeSubscription = existingSubscriptions.data.length > 0
+                ? existingSubscriptions.data[0]
+                : await this.stripe.subscriptions.create({
+                    customer: customerId,
+                    items: [{ price: this.subscriptionPriceId }],
+                    default_payment_method: paymentMethodId || undefined,
+                });
+            const period = this.getSubscriptionPeriod(stripeSubscription);
             subscription.stripeSubscriptionId = stripeSubscription.id;
             subscription.stripeCustomerId = customerId;
-            subscription.currentPeriodStart = new Date(stripeSubscription.current_period_start * 1000);
-            subscription.currentPeriodEnd = new Date(stripeSubscription.current_period_end * 1000);
+            subscription.currentPeriodStart = period.start;
+            subscription.currentPeriodEnd = period.end;
             subscription.status = subscription_schema_1.SubscriptionStatus.ACTIVE;
             subscription.role = role;
             await subscription.save();
@@ -719,6 +741,100 @@ let SubscriptionsService = class SubscriptionsService {
             console.error(`❌ Failed to create subscription after payment for user ${userId}:`, error);
             throw error;
         }
+    }
+    async confirmPayment(userId) {
+        const userObjectId = new mongoose_2.Types.ObjectId(userId);
+        const subscription = await this.subscriptionModel.findOne({
+            userId: userObjectId,
+        });
+        if (!subscription) {
+            throw new common_1.NotFoundException('Subscription not found');
+        }
+        if (subscription.status === subscription_schema_1.SubscriptionStatus.ACTIVE) {
+            return this.mapToResponseDto(subscription);
+        }
+        if (subscription.status !== subscription_schema_1.SubscriptionStatus.PENDING) {
+            throw new common_1.BadRequestException(`Subscription is not pending. Current status: ${subscription.status}`);
+        }
+        if (!subscription.stripePaymentIntentId || !this.stripe) {
+            throw new common_1.BadRequestException('No payment found to confirm for this subscription');
+        }
+        const paymentIntent = await this.stripe.paymentIntents.retrieve(subscription.stripePaymentIntentId);
+        if (paymentIntent.status !== 'succeeded') {
+            throw new common_1.BadRequestException(`Payment has not completed yet (status: ${paymentIntent.status})`);
+        }
+        const customerId = paymentIntent.customer;
+        const paymentMethodId = paymentIntent.payment_method;
+        const role = paymentIntent.metadata?.subscriptionRole || subscription.role;
+        await this.createSubscriptionAfterPayment(userId, customerId, role, paymentMethodId);
+        const updated = await this.subscriptionModel.findOne({ userId: userObjectId });
+        return this.mapToResponseDto(updated);
+    }
+    async createSetupIntent(userId) {
+        const subscription = await this.subscriptionModel.findOne({ userId: new mongoose_2.Types.ObjectId(userId) });
+        if (!subscription?.stripeCustomerId) {
+            throw new common_1.BadRequestException('No active subscription or Stripe customer found');
+        }
+        if (!this.stripe)
+            throw new common_1.BadRequestException('Stripe is not configured');
+        const setupIntent = await this.stripe.setupIntents.create({
+            customer: subscription.stripeCustomerId,
+            payment_method_types: ['card'],
+            usage: 'off_session',
+        });
+        return { clientSecret: setupIntent.client_secret };
+    }
+    async updatePaymentMethod(userId, paymentMethodId) {
+        const subscription = await this.subscriptionModel.findOne({ userId: new mongoose_2.Types.ObjectId(userId) });
+        if (!subscription?.stripeCustomerId) {
+            throw new common_1.BadRequestException('No active subscription found');
+        }
+        if (!this.stripe)
+            throw new common_1.BadRequestException('Stripe is not configured');
+        try {
+            const pm = await this.stripe.paymentMethods.retrieve(paymentMethodId);
+            if (!pm.customer || pm.customer !== subscription.stripeCustomerId) {
+                await this.stripe.paymentMethods.attach(paymentMethodId, {
+                    customer: subscription.stripeCustomerId,
+                });
+            }
+        }
+        catch {
+            await this.stripe.paymentMethods.attach(paymentMethodId, {
+                customer: subscription.stripeCustomerId,
+            });
+        }
+        await this.stripe.customers.update(subscription.stripeCustomerId, {
+            invoice_settings: { default_payment_method: paymentMethodId },
+        });
+        if (subscription.stripeSubscriptionId) {
+            await this.stripe.subscriptions.update(subscription.stripeSubscriptionId, {
+                default_payment_method: paymentMethodId,
+            });
+        }
+        return this.mapToResponseDto(subscription);
+    }
+    async getBillingHistory(userId) {
+        const subscription = await this.subscriptionModel.findOne({ userId: new mongoose_2.Types.ObjectId(userId) });
+        if (!subscription?.stripeCustomerId)
+            return { invoices: [] };
+        if (!this.stripe)
+            return { invoices: [] };
+        const invoiceList = await this.stripe.invoices.list({
+            customer: subscription.stripeCustomerId,
+            limit: 10,
+        });
+        const invoices = invoiceList.data.map((inv) => ({
+            id: inv.id,
+            amountPaid: inv.amount_paid / 100,
+            currency: inv.currency.toUpperCase(),
+            status: inv.status,
+            date: new Date(inv.created * 1000).toISOString(),
+            invoiceUrl: inv.hosted_invoice_url,
+            pdfUrl: inv.invoice_pdf,
+            description: inv.lines?.data?.[0]?.description ?? 'Subscription',
+        }));
+        return { invoices };
     }
 };
 exports.SubscriptionsService = SubscriptionsService;

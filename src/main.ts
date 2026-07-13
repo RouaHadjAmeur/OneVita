@@ -2,13 +2,21 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { SwaggerModule, DocumentBuilder, OpenAPIObject } from '@nestjs/swagger';
 import { ValidationPipe, Logger } from '@nestjs/common';
+import { IoAdapter } from '@nestjs/platform-socket.io';
+import * as express from 'express';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, {
     rawBody: true, // Enable raw body for webhook signature verification
   });
 
+  // Increase JSON body size limit to 10 MB to support base64-encoded pet photos.
+  // A 1 MB JPEG becomes ~1.37 MB in base64; 10 MB gives comfortable headroom.
+  app.use(express.json({ limit: '10mb' }));
+  app.use(express.urlencoded({ limit: '10mb', extended: true }));
+
   app.enableCors();
+  app.useWebSocketAdapter(new IoAdapter(app));
 
   app.useGlobalPipes(
     new ValidationPipe({
@@ -20,8 +28,8 @@ async function bootstrap(): Promise<void> {
 
   // Step 1: Build Swagger configuration
   const swaggerConfig = new DocumentBuilder()
-    .setTitle('Rifq Backend API')
-    .setDescription('API documentation for Rifq backend')
+    .setTitle('OneVita Backend API')
+    .setDescription('API documentation for OneVita backend')
     .setVersion('1.0')
     .addBearerAuth()
     .build() as OpenAPIObject;
@@ -33,11 +41,11 @@ async function bootstrap(): Promise<void> {
 
   // Step 3: Setup Swagger
   SwaggerModule.setup('api', app, swaggerDocument);
-
   const port = Number(process.env.PORT) || 3000;
-  await app.listen(port);
+  const host = '0.0.0.0';
+  await app.listen(port, host);
 
-  Logger.log(`Server running on http://localhost:${port}`);
+  Logger.log(`Server listening on ${host}:${port}`);
 }
 
 bootstrap().catch((err: unknown) => {

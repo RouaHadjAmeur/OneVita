@@ -10,9 +10,12 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { Request } from 'express';
 import { User } from '../users/schemas/user.schema';
 import { GoogleLoginDto } from './dto/google-login.dto';
+import { AppleLoginDto } from './dto/apple-login.dto';
+import { FcmService } from '../fcm/fcm.service';
 export declare class AuthController {
     private readonly authService;
-    constructor(authService: AuthService);
+    private readonly fcmService;
+    constructor(authService: AuthService, fcmService: FcmService);
     register(registerDto: RegisterDto): Promise<{
         message: string;
     }>;
@@ -52,6 +55,9 @@ export declare class AuthController {
     getProfile(user: User): Promise<Partial<import("../users/schemas/user.schema").UserDocument> & {
         subscription?: any;
     }>;
+    getFirebaseToken(user: User): Promise<{
+        token: string;
+    }>;
     checkEmailExists(req: Request): Promise<{
         exists: boolean;
     }>;
@@ -61,6 +67,18 @@ export declare class AuthController {
             email: any;
             name: any;
             profileImage: any;
+            isVerified: any;
+        };
+        tokens: {
+            accessToken: string;
+            refreshToken: string;
+        };
+    }>;
+    apple(dto: AppleLoginDto): Promise<{
+        user: {
+            id: any;
+            email: any;
+            name: any;
             isVerified: any;
         };
         tokens: {

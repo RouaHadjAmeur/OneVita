@@ -101,8 +101,14 @@ let PetSittersService = class PetSittersService {
         await petSitter.save();
         return createdUser;
     }
-    async findAll() {
-        const sitters = await this.petSitterModel.find().populate('user').exec();
+    async findAll(excludeUserId) {
+        const filter = excludeUserId && mongoose_2.Types.ObjectId.isValid(excludeUserId)
+            ? { user: { $ne: new mongoose_2.Types.ObjectId(excludeUserId) } }
+            : {};
+        const sitters = await this.petSitterModel
+            .find(filter)
+            .populate('user')
+            .exec();
         return sitters.map((sitter) => {
             const user = sitter.user;
             if (!user || !('_id' in user)) {

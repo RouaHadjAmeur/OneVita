@@ -25,6 +25,7 @@ export declare class AuthService {
     private readonly accessExpiresIn;
     private readonly refreshExpiresIn;
     private jwks;
+    private appleJwks;
     constructor(usersService: UsersService, jwtService: JwtService, configService: ConfigService, mailService: MailService, subscriptionsService: SubscriptionsService);
     private hashToken;
     private compareToken;
@@ -73,6 +74,18 @@ export declare class AuthService {
             email: any;
             name: any;
             profileImage: any;
+            isVerified: any;
+        };
+        tokens: {
+            accessToken: string;
+            refreshToken: string;
+        };
+    }>;
+    signInWithApple(identityToken: string, clientName?: string): Promise<{
+        user: {
+            id: any;
+            email: any;
+            name: any;
             isVerified: any;
         };
         tokens: {

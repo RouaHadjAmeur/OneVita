@@ -38,6 +38,9 @@ export class Subscription extends Document {
   stripeCustomerId?: string;
 
   @Prop()
+  stripePaymentIntentId?: string;
+
+  @Prop()
   currentPeriodStart?: Date;
 
   @Prop()

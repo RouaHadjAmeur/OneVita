@@ -29,6 +29,7 @@ export declare class AiService {
     private parseStatusResponse;
     private getCached;
     private setCached;
+    clearCacheForPet(petId: string): void;
     generateTips(petId: string): Promise<AiTipsResponseDto>;
     private fetchAndCacheTips;
     private refreshCacheInBackground;

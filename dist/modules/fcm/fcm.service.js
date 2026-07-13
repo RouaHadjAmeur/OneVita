@@ -151,6 +151,18 @@ let FcmService = FcmService_1 = class FcmService {
             senderName,
         });
     }
+    async mintCustomToken(uid) {
+        if (!this.firebaseApp) {
+            throw new Error('Firebase not initialized');
+        }
+        return admin.auth().createCustomToken(uid);
+    }
+    getFirestore() {
+        if (!this.firebaseApp) {
+            throw new Error('Firebase not initialized');
+        }
+        return admin.firestore();
+    }
     async sendMulticastNotification(fcmTokens, title, body, data) {
         if (!this.firebaseApp) {
             this.logger.warn('Firebase not initialized, skipping notification');

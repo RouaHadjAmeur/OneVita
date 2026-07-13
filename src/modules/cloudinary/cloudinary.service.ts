@@ -23,12 +23,7 @@ export class CloudinaryService {
     return new Promise((resolve, reject) => {
       const upload = v2.uploader.upload_stream(
         {
-          folder: folder,
           resource_type: 'image',
-          transformation: [
-            { width: 500, height: 500, crop: 'limit' },
-            { quality: 'auto' },
-          ],
         },
         (error, result) => {
           if (error) {
@@ -105,12 +100,7 @@ export class CloudinaryService {
     return new Promise((resolve, reject) => {
       const upload = v2.uploader.upload_stream(
         {
-          folder: folder,
           resource_type: 'image',
-          transformation: [
-            { width: 500, height: 500, crop: 'limit' },
-            { quality: 'auto' },
-          ],
         },
         (error, result) => {
           if (error) {

@@ -26,12 +26,17 @@ import { Request } from 'express';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { User } from '../users/schemas/user.schema';
 import { GoogleLoginDto } from './dto/google-login.dto';
+import { AppleLoginDto } from './dto/apple-login.dto';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { FcmService } from '../fcm/fcm.service';
 
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly fcmService: FcmService,
+  ) {}
 
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
@@ -118,6 +123,21 @@ export class AuthController {
     return this.authService.getProfile(String(user._id ?? user.id));
   }
 
+  @Get('firebase-token')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Mint a Firebase custom auth token',
+    description:
+      'Lets the app sign into Firebase (uid = this Mongo user id) so Firestore security rules can scope chat access, without a separate Firebase login.',
+  })
+  async getFirebaseToken(@CurrentUser() user: User) {
+    const uid = String(user._id ?? user.id);
+    const token = await this.fcmService.mintCustomToken(uid);
+    return { token };
+  }
+
   @Get('email-exists')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -137,6 +157,13 @@ export class AuthController {
   @Post('google')
   async google(@Body() dto: GoogleLoginDto) {
     return this.authService.signInWithGoogle(dto.id_token);
+  }
+
+  @Post('apple')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Sign in / sign up with Apple' })
+  async apple(@Body() dto: AppleLoginDto) {
+    return this.authService.signInWithApple(dto.identity_token, dto.name);
   }
 
   @Patch('change-email')

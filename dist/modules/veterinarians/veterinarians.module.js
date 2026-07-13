@@ -15,6 +15,7 @@ const user_schema_1 = require("../users/schemas/user.schema");
 const veterinarian_schema_1 = require("./schemas/veterinarian.schema");
 const users_module_1 = require("../users/users.module");
 const mail_module_1 = require("../mail/mail.module");
+const cloudinary_module_1 = require("../cloudinary/cloudinary.module");
 let VeterinariansModule = class VeterinariansModule {
 };
 exports.VeterinariansModule = VeterinariansModule;
@@ -27,6 +28,7 @@ exports.VeterinariansModule = VeterinariansModule = __decorate([
             ]),
             users_module_1.UsersModule,
             mail_module_1.MailModule,
+            cloudinary_module_1.CloudinaryModule,
         ],
         controllers: [veterinarians_controller_1.VeterinariansController],
         providers: [veterinarians_service_1.VeterinariansService],

@@ -6,6 +6,7 @@ import {
   Post,
   Body,
   Param,
+  Query,
   Delete,
   Put,
   HttpCode,
@@ -30,8 +31,8 @@ export class VeterinariansController {
   }
 
   @Get()
-  async findAll(): Promise<User[]> {
-    return this.veterinariansService.findAll();
+  async findAll(@Query('excludeUserId') excludeUserId?: string): Promise<User[]> {
+    return this.veterinariansService.findAll(excludeUserId);
   }
 
   @Get(':id')

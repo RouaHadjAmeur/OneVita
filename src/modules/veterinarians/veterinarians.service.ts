@@ -6,7 +6,7 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { CreateVetDto } from './dto/create-vet.dto';
 import { UpdateVetDto } from './dto/update-vet.dto';
 import { UsersService } from '../users/users.service';
@@ -16,6 +16,7 @@ import {
   VeterinarianDocument,
 } from './schemas/veterinarian.schema';
 import { MailService } from '../mail/mail.service';
+import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -27,7 +28,34 @@ export class VeterinariansService {
     private readonly veterinarianModel: Model<VeterinarianDocument>,
     private readonly usersService: UsersService,
     private readonly mailService: MailService,
+    private readonly cloudinaryService: CloudinaryService,
   ) {}
+
+  // Uploads base64-encoded license/clinic images to Cloudinary, if provided.
+  private async resolveVetImages(vetData: {
+    licenseImageBase64?: string;
+    clinicImageBase64?: string;
+  }): Promise<{ licenseImageUrl?: string; clinicImageUrl?: string }> {
+    const result: { licenseImageUrl?: string; clinicImageUrl?: string } = {};
+
+    if (vetData.licenseImageBase64) {
+      const uploaded = await this.cloudinaryService.uploadImageFromBase64(
+        vetData.licenseImageBase64,
+        'veterinarians/licenses',
+      );
+      result.licenseImageUrl = uploaded.secure_url as string;
+    }
+
+    if (vetData.clinicImageBase64) {
+      const uploaded = await this.cloudinaryService.uploadImageFromBase64(
+        vetData.clinicImageBase64,
+        'veterinarians/clinics',
+      );
+      result.clinicImageUrl = uploaded.secure_url as string;
+    }
+
+    return result;
+  }
 
   async create(createVetDto: CreateVetDto): Promise<UserDocument> {
     // Check if user with email already exists
@@ -52,6 +80,8 @@ export class VeterinariansService {
 
     const createdUser = await new this.userModel(vetData).save();
 
+    const uploadedImages = await this.resolveVetImages(createVetDto);
+
     // Create veterinarian record in veterinarians collection
     const veterinarian = new this.veterinarianModel({
       user: createdUser._id,
@@ -63,6 +93,8 @@ export class VeterinariansService {
       latitude: createVetDto.latitude,
       longitude: createVetDto.longitude,
       bio: createVetDto.bio,
+      licenseImageUrl: uploadedImages.licenseImageUrl,
+      clinicImageUrl: uploadedImages.clinicImageUrl,
     });
 
     await veterinarian.save();
@@ -70,9 +102,13 @@ export class VeterinariansService {
     return createdUser;
   }
 
-  async findAll(): Promise<UserDocument[]> {
+  async findAll(excludeUserId?: string): Promise<UserDocument[]> {
+    const filter =
+      excludeUserId && Types.ObjectId.isValid(excludeUserId)
+        ? { user: { $ne: new Types.ObjectId(excludeUserId) } }
+        : {};
     const veterinarians = await this.veterinarianModel
-      .find()
+      .find(filter)
       .populate('user')
       .exec();
     return veterinarians.map((vet) => {
@@ -110,6 +146,8 @@ export class VeterinariansService {
     (user as any).vetSpecializations = vet.specializations;
     (user as any).vetYearsOfExperience = vet.yearsOfExperience;
     (user as any).vetBio = vet.bio;
+    (user as any).vetLicenseImageUrl = vet.licenseImageUrl;
+    (user as any).vetClinicImageUrl = vet.clinicImageUrl;
     (user as any).latitude = vet.latitude;
     (user as any).longitude = vet.longitude;
     return user;
@@ -173,6 +211,14 @@ export class VeterinariansService {
       vetFields.bio = updateVetDto.bio;
     }
 
+    const uploadedImages = await this.resolveVetImages(updateVetDto);
+    if (uploadedImages.licenseImageUrl !== undefined) {
+      vetFields.licenseImageUrl = uploadedImages.licenseImageUrl;
+    }
+    if (uploadedImages.clinicImageUrl !== undefined) {
+      vetFields.clinicImageUrl = uploadedImages.clinicImageUrl;
+    }
+
     // Update user fields if any
     if (Object.keys(userFields).length > 0) {
       await this.userModel.findByIdAndUpdate(id, { $set: userFields }).exec();
@@ -198,6 +244,8 @@ export class VeterinariansService {
     (user as any).vetSpecializations = vet.specializations;
     (user as any).vetYearsOfExperience = vet.yearsOfExperience;
     (user as any).vetBio = vet.bio;
+    (user as any).vetLicenseImageUrl = vet.licenseImageUrl;
+    (user as any).vetClinicImageUrl = vet.clinicImageUrl;
     (user as any).latitude = vet.latitude;
     (user as any).longitude = vet.longitude;
     return user;
@@ -233,6 +281,12 @@ export class VeterinariansService {
       .findOne({ user: userId })
       .exec();
 
+    const uploadedImages = await this.resolveVetImages(vetData);
+    const licenseImageUrl =
+      uploadedImages.licenseImageUrl ?? veterinarian?.licenseImageUrl;
+    const clinicImageUrl =
+      uploadedImages.clinicImageUrl ?? veterinarian?.clinicImageUrl;
+
     if (veterinarian) {
       // Already a vet, just update the fields
       veterinarian = await this.veterinarianModel
@@ -248,6 +302,8 @@ export class VeterinariansService {
               latitude: vetData.latitude,
               longitude: vetData.longitude,
               bio: vetData.bio,
+              licenseImageUrl,
+              clinicImageUrl,
             },
           },
           { new: true },
@@ -267,6 +323,8 @@ export class VeterinariansService {
         latitude: vetData.latitude,
         longitude: vetData.longitude,
         bio: vetData.bio,
+        licenseImageUrl,
+        clinicImageUrl,
       };
 
       // Ensure email is not included

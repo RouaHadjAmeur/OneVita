@@ -62,4 +62,13 @@ export class CreateVetDto {
   @IsOptional()
   @IsString()
   bio?: string;
+
+  // Base64-encoded images (data URI or raw base64), uploaded to Cloudinary on save
+  @IsOptional()
+  @IsString()
+  licenseImageBase64?: string;
+
+  @IsOptional()
+  @IsString()
+  clinicImageBase64?: string;
 }

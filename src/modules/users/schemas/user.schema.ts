@@ -127,7 +127,7 @@ export class User extends Document {
   hasPets?: boolean;
 
   @Prop({ default: 'local' })
-  provider: 'local' | 'google';
+  provider: 'local' | 'google' | 'apple';
 
   @Prop()
   providerId?: string; // Google "sub" field (user unique ID)

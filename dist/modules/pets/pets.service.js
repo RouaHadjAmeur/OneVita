@@ -20,12 +20,14 @@ const pet_schema_1 = require("./schemas/pet.schema");
 const user_schema_1 = require("../users/schemas/user.schema");
 const medical_history_schema_1 = require("./schemas/medical-history.schema");
 const cloudinary_service_1 = require("../cloudinary/cloudinary.service");
+const ai_service_1 = require("../ai/ai.service");
 let PetsService = class PetsService {
-    constructor(petModel, userModel, medicalHistoryModel, cloudinaryService) {
+    constructor(petModel, userModel, medicalHistoryModel, cloudinaryService, aiService) {
         this.petModel = petModel;
         this.userModel = userModel;
         this.medicalHistoryModel = medicalHistoryModel;
         this.cloudinaryService = cloudinaryService;
+        this.aiService = aiService;
     }
     async create(ownerId, createPetDto, file) {
         try {
@@ -35,24 +37,10 @@ let PetsService = class PetsService {
             const { medicalHistory, photo: photoBase64, ...petData } = createPetDto;
             let photoUrl;
             if (file) {
-                try {
-                    const result = await this.cloudinaryService.uploadImage(file, 'pets');
-                    photoUrl = result.secure_url;
-                }
-                catch (error) {
-                    console.error('Cloudinary upload error:', error);
-                    throw new Error(`Failed to upload image: ${error instanceof Error ? error.message : 'Unknown error'}`);
-                }
+                photoUrl = `data:image/jpeg;base64,${file.buffer.toString('base64')}`;
             }
             else if (photoBase64 && typeof photoBase64 === 'string') {
-                try {
-                    const result = await this.cloudinaryService.uploadImageFromBase64(photoBase64, 'pets');
-                    photoUrl = result.secure_url;
-                }
-                catch (error) {
-                    console.error('Cloudinary base64 upload error:', error);
-                    throw new Error(`Failed to upload image from base64: ${error instanceof Error ? error.message : 'Unknown error'}`);
-                }
+                photoUrl = photoBase64;
             }
             const pet = await this.petModel.create({
                 ...petData,
@@ -96,52 +84,18 @@ let PetsService = class PetsService {
             if (!pet)
                 throw new common_1.NotFoundException('Pet not found');
             if (file) {
-                if (pet.photo) {
-                    const publicId = this.extractPublicId(pet.photo);
-                    if (publicId) {
-                        try {
-                            await this.cloudinaryService.deleteImage(publicId);
-                        }
-                        catch (error) {
-                            console.error('Error deleting old photo:', error);
-                        }
-                    }
-                }
-                try {
-                    const result = await this.cloudinaryService.uploadImage(file, 'pets');
-                    pet.photo = result.secure_url;
-                }
-                catch (error) {
-                    console.error('Cloudinary upload error:', error);
-                    throw new Error(`Failed to upload image: ${error instanceof Error ? error.message : 'Unknown error'}`);
-                }
+                pet.photo = `data:image/jpeg;base64,${file.buffer.toString('base64')}`;
             }
             else if (photoBase64 && typeof photoBase64 === 'string') {
-                if (pet.photo) {
-                    const publicId = this.extractPublicId(pet.photo);
-                    if (publicId) {
-                        try {
-                            await this.cloudinaryService.deleteImage(publicId);
-                        }
-                        catch (error) {
-                            console.error('Error deleting old photo:', error);
-                        }
-                    }
-                }
-                try {
-                    const result = await this.cloudinaryService.uploadImageFromBase64(photoBase64, 'pets');
-                    pet.photo = result.secure_url;
-                }
-                catch (error) {
-                    console.error('Cloudinary base64 upload error:', error);
-                    throw new Error(`Failed to upload image from base64: ${error instanceof Error ? error.message : 'Unknown error'}`);
-                }
+                pet.photo = photoBase64;
             }
             const petUpdateEntries = Object.entries(petUpdates).filter(([, value]) => value !== undefined);
             if (petUpdateEntries.length > 0) {
                 petUpdateEntries.forEach(([key, value]) => {
                     pet[key] = value;
                 });
+            }
+            if (petUpdateEntries.length > 0 || file || (photoBase64 && typeof photoBase64 === 'string')) {
                 await pet.save();
             }
             if (medicalHistory) {
@@ -193,10 +147,16 @@ let PetsService = class PetsService {
             $pull: { pets: new mongoose_2.Types.ObjectId(petId) },
         });
         await this.medicalHistoryModel.findOneAndDelete({ pet: pet._id });
+        this.aiService.clearCacheForPet(petId);
     }
     extractPublicId(imageUrl) {
-        const matches = imageUrl.match(/\/([^/]+)\.(jpg|jpeg|png|gif|webp)$/i);
-        return matches ? matches[1] : null;
+        const uploadIndex = imageUrl.indexOf('/upload/');
+        if (uploadIndex === -1)
+            return null;
+        let afterUpload = imageUrl.substring(uploadIndex + 8);
+        afterUpload = afterUpload.replace(/^v\d+\//, '');
+        const dotIndex = afterUpload.lastIndexOf('.');
+        return dotIndex !== -1 ? afterUpload.substring(0, dotIndex) : afterUpload;
     }
 };
 exports.PetsService = PetsService;
@@ -208,6 +168,7 @@ exports.PetsService = PetsService = __decorate([
     __metadata("design:paramtypes", [mongoose_2.Model,
         mongoose_2.Model,
         mongoose_2.Model,
-        cloudinary_service_1.CloudinaryService])
+        cloudinary_service_1.CloudinaryService,
+        ai_service_1.AiService])
 ], PetsService);
 //# sourceMappingURL=pets.service.js.map

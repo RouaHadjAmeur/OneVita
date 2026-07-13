@@ -708,6 +708,16 @@ Return ONLY the status word/phrase, nothing else.`;
   }
 
   /**
+   * Clear all cached AI responses for a pet (e.g. when the pet is deleted)
+   */
+  clearCacheForPet(petId: string): void {
+    this.tipsCache.delete(petId);
+    this.recommendationsCache.delete(petId);
+    this.remindersCache.delete(petId);
+    this.statusCache.delete(petId);
+  }
+
+  /**
    * Generate tips for a pet
    */
   async generateTips(petId: string): Promise<AiTipsResponseDto> {

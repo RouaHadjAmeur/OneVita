@@ -51,6 +51,14 @@ __decorate([
     (0, mongoose_1.Prop)(),
     __metadata("design:type", String)
 ], Veterinarian.prototype, "bio", void 0);
+__decorate([
+    (0, mongoose_1.Prop)(),
+    __metadata("design:type", String)
+], Veterinarian.prototype, "licenseImageUrl", void 0);
+__decorate([
+    (0, mongoose_1.Prop)(),
+    __metadata("design:type", String)
+], Veterinarian.prototype, "clinicImageUrl", void 0);
 exports.Veterinarian = Veterinarian = __decorate([
     (0, mongoose_1.Schema)({ timestamps: true, collection: 'veterinarians', strict: true })
 ], Veterinarian);

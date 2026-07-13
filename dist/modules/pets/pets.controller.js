@@ -16,6 +16,7 @@ exports.PetsController = void 0;
 const common_1 = require("@nestjs/common");
 const platform_express_1 = require("@nestjs/platform-express");
 const swagger_1 = require("@nestjs/swagger");
+const jwt_auth_guard_1 = require("../auth/guards/jwt-auth.guard");
 const pets_service_1 = require("./pets.service");
 const create_pet_dto_1 = require("./dto/create-pet.dto");
 const update_pet_dto_1 = require("./dto/update-pet.dto");
@@ -192,6 +193,7 @@ __decorate([
 ], PetsController.prototype, "delete", null);
 exports.PetsController = PetsController = __decorate([
     (0, swagger_1.ApiTags)('pets'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     (0, common_1.Controller)('pets'),
     __metadata("design:paramtypes", [pets_service_1.PetsService])
 ], PetsController);

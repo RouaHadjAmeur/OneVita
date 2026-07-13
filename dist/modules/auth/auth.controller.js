@@ -28,10 +28,13 @@ const jwt_auth_guard_1 = require("../auth/guards/jwt-auth.guard");
 const current_user_decorator_1 = require("../../common/decorators/current-user.decorator");
 const user_schema_1 = require("../users/schemas/user.schema");
 const google_login_dto_1 = require("./dto/google-login.dto");
+const apple_login_dto_1 = require("./dto/apple-login.dto");
 const swagger_1 = require("@nestjs/swagger");
+const fcm_service_1 = require("../fcm/fcm.service");
 let AuthController = class AuthController {
-    constructor(authService) {
+    constructor(authService, fcmService) {
         this.authService = authService;
+        this.fcmService = fcmService;
     }
     async register(registerDto) {
         return this.authService.register(registerDto.email, registerDto.name, registerDto.password, registerDto.role);
@@ -63,6 +66,11 @@ let AuthController = class AuthController {
     async getProfile(user) {
         return this.authService.getProfile(String(user._id ?? user.id));
     }
+    async getFirebaseToken(user) {
+        const uid = String(user._id ?? user.id);
+        const token = await this.fcmService.mintCustomToken(uid);
+        return { token };
+    }
     async checkEmailExists(req) {
         const email = req.query.email;
         if (!email) {
@@ -74,6 +82,9 @@ let AuthController = class AuthController {
     }
     async google(dto) {
         return this.authService.signInWithGoogle(dto.id_token);
+    }
+    async apple(dto) {
+        return this.authService.signInWithApple(dto.identity_token, dto.name);
     }
     async changeEmail(user, changeEmailDto) {
         return this.authService.changeEmail(String(user._id ?? user.id), changeEmailDto);
@@ -174,6 +185,20 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "getProfile", null);
 __decorate([
+    (0, common_1.Get)('firebase-token'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, common_1.HttpCode)(common_1.HttpStatus.OK),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiOperation)({
+        summary: 'Mint a Firebase custom auth token',
+        description: 'Lets the app sign into Firebase (uid = this Mongo user id) so Firestore security rules can scope chat access, without a separate Firebase login.',
+    }),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [user_schema_1.User]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "getFirebaseToken", null);
+__decorate([
     (0, common_1.Get)('email-exists'),
     (0, common_1.HttpCode)(common_1.HttpStatus.OK),
     (0, swagger_1.ApiOperation)({
@@ -192,6 +217,15 @@ __decorate([
     __metadata("design:paramtypes", [google_login_dto_1.GoogleLoginDto]),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "google", null);
+__decorate([
+    (0, common_1.Post)('apple'),
+    (0, common_1.HttpCode)(common_1.HttpStatus.OK),
+    (0, swagger_1.ApiOperation)({ summary: 'Sign in / sign up with Apple' }),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [apple_login_dto_1.AppleLoginDto]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "apple", null);
 __decorate([
     (0, common_1.Patch)('change-email'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
@@ -243,6 +277,7 @@ __decorate([
 exports.AuthController = AuthController = __decorate([
     (0, swagger_1.ApiTags)('auth'),
     (0, common_1.Controller)('auth'),
-    __metadata("design:paramtypes", [auth_service_1.AuthService])
+    __metadata("design:paramtypes", [auth_service_1.AuthService,
+        fcm_service_1.FcmService])
 ], AuthController);
 //# sourceMappingURL=auth.controller.js.map

@@ -99,13 +99,13 @@ let UsersService = class UsersService {
                     }
                 }
                 try {
-                    const result = await this.cloudinaryService.uploadImage(file, 'users/profiles');
-                    payload.profileImage = result.secure_url;
+                    const photoUrl = `data:image/jpeg;base64,${file.buffer.toString('base64')}`;
+                    payload.profileImage = photoUrl;
                     payload.hasPhoto = true;
                 }
                 catch (error) {
-                    console.error('Cloudinary upload error:', error);
-                    throw new Error(`Failed to upload profile image: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                    console.error('Base64 conversion error:', error);
+                    throw new Error(`Failed to process profile image: ${error instanceof Error ? error.message : 'Unknown error'}`);
                 }
             }
             const user = await this.userModel

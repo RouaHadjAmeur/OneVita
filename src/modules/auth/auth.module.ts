@@ -10,6 +10,7 @@ import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy';
 import { MailModule } from '../mail/mail.module';
 import { ConfigModule } from '@nestjs/config';
 import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
+import { FcmModule } from '../fcm/fcm.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
     MailModule,
     ConfigModule,
     SubscriptionsModule,
+    FcmModule,
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy, JwtRefreshStrategy],

@@ -482,6 +482,12 @@ Return ONLY the status word/phrase, nothing else.`;
             timestamp: Date.now(),
         });
     }
+    clearCacheForPet(petId) {
+        this.tipsCache.delete(petId);
+        this.recommendationsCache.delete(petId);
+        this.remindersCache.delete(petId);
+        this.statusCache.delete(petId);
+    }
     async generateTips(petId) {
         const cached = this.getCached(this.tipsCache, petId);
         if (cached) {

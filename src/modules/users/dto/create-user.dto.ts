@@ -122,7 +122,7 @@ export class CreateUserDto {
   // 🔹 Add fields for social login
   @IsOptional()
   @IsString()
-  provider?: 'local' | 'google' = 'local';
+  provider?: 'local' | 'google' | 'apple' = 'local';
 
   @IsOptional()
   @IsString()

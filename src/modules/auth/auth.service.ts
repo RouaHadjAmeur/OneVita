@@ -22,6 +22,8 @@ import * as bcrypt from 'bcryptjs';
 import { jwtVerify, createRemoteJWKSet } from 'jose';
 const GOOGLE_ISS = 'https://accounts.google.com';
 const GOOGLE_JWKS_URL = 'https://www.googleapis.com/oauth2/v3/certs';
+const APPLE_ISS = 'https://appleid.apple.com';
+const APPLE_JWKS_URL = 'https://appleid.apple.com/auth/keys';
 
 export interface Tokens {
   accessToken: string;
@@ -36,6 +38,7 @@ export class AuthService {
   private readonly refreshExpiresIn: string;
 
   private jwks = createRemoteJWKSet(new URL(GOOGLE_JWKS_URL));
+  private appleJwks = createRemoteJWKSet(new URL(APPLE_JWKS_URL));
 
   constructor(
     private readonly usersService: UsersService,
@@ -117,17 +120,28 @@ export class AuthService {
       100000 + Math.random() * 900000,
     ).toString();
 
+    const isDev = process.env.NODE_ENV !== 'production';
+
     const createDto: CreateUserDto = {
       email: normalized,
       name,
       password: hashedPassword,
       role,
-      isVerified: false,
-      verificationCode,
-      verificationCodeExpires: new Date(Date.now() + 10 * 60 * 1000),
+      // In development, auto-verify so login works without email
+      isVerified: isDev ? true : false,
+      verificationCode: isDev ? undefined : verificationCode,
+      verificationCodeExpires: isDev ? undefined : new Date(Date.now() + 10 * 60 * 1000),
     } as unknown as CreateUserDto;
 
     await this.usersService.create(createDto);
+
+    if (isDev) {
+      console.log(`[DEV] Auto-verified user ${normalized} — email verification skipped in development`);
+      return { message: 'Registration successful' };
+    }
+
+    // DEV: log verification code to console when email sending fails
+    console.log(`[DEV] Verification code for ${normalized}: ${verificationCode}`);
 
     // best-effort email sending; log error but don't block registration
     try {
@@ -276,6 +290,11 @@ export class AuthService {
       verificationCodeExpires: new Date(Date.now() + 10 * 60 * 1000),
     } as Partial<CreateUserDto>);
 
+    // DEV: log verification code to console when email sending fails
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[DEV] Resend verification code for ${user.email}: ${newCode}`);
+    }
+
     try {
       await this.mailService.sendVerificationCode(user.email, newCode);
     } catch (err: unknown) {
@@ -361,6 +380,11 @@ export class AuthService {
       passwordResetCode: resetCode,
       passwordResetCodeExpires: expires,
     } as any);
+
+    // DEV: log reset code to console when email sending fails
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[DEV] Password reset code for ${user.email}: ${resetCode}`);
+    }
 
     // Send reset code via email
     try {
@@ -755,6 +779,117 @@ export class AuthService {
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
         profileImage: user.profileImage,
         // Optionally include isVerified so the app can branch without calling /auth/me
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+        isVerified: user.isVerified,
+      },
+      tokens: { accessToken, refreshToken },
+    };
+  }
+
+  /** Sign in / sign up with Apple */
+  async signInWithApple(identityToken: string, clientName?: string) {
+    const bundleId = this.configService.get<string>('APPLE_BUNDLE_ID');
+    if (!bundleId) {
+      throw new UnauthorizedException(
+        'Apple authentication not configured. Missing APPLE_BUNDLE_ID',
+      );
+    }
+
+    let payload: any;
+
+    try {
+      const { payload: verified } = await jwtVerify(
+        identityToken,
+        this.appleJwks,
+        {
+          issuer: APPLE_ISS,
+          audience: bundleId,
+        },
+      );
+      payload = verified;
+    } catch (error) {
+      console.error('Apple token verification failed:', error);
+      throw new UnauthorizedException(
+        `Invalid Apple token: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    const { sub, email, email_verified } = payload;
+
+    if (!sub) {
+      throw new UnauthorizedException('Apple token missing user identifier');
+    }
+
+    // Apple sends email_verified as string "true" or boolean true
+    const emailVerified =
+      email_verified === true || email_verified === 'true';
+
+    // 1) Find existing user by Apple providerId or email
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    let user = (this.usersService as any).findByProvider
+      ? // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+        await (this.usersService as any).findByProvider('apple', sub)
+      : null;
+
+    if (!user && email) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+      user = await this.usersService.findByEmail(email);
+    }
+
+    // 2) Create or update user
+    if (!user) {
+      // Apple only gives the name on the very first sign-in (from client)
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      const userName = clientName || (email ? email.split('@')[0] : 'Apple User');
+
+      user = await this.usersService.create({
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        email: email || `apple_${sub}@privaterelay.appleid.com`,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        name: userName,
+        provider: 'apple',
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        providerId: sub,
+        isVerified: emailVerified,
+      } as unknown as CreateUserDto);
+    } else {
+      // Link Apple provider if not already linked
+      const needsUpdate =
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        user.provider !== 'apple' || user.providerId !== sub;
+
+      if (needsUpdate) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access
+        user = await this.usersService.update(user._id, {
+          provider: 'apple',
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+          providerId: sub,
+        });
+      }
+    }
+
+    // 3) Issue tokens
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+    const { accessToken, refreshToken } = await this.generateTokensForUser(user);
+
+    // 4) Store hashed refresh token
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    user.hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    if (typeof user.save === 'function') {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+      await user.save();
+    }
+
+    return {
+      user: {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+        id: user._id,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+        email: user.email,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+        name: user.name,
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
         isVerified: user.isVerified,
       },

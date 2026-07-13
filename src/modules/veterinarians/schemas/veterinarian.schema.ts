@@ -38,6 +38,12 @@ export class Veterinarian {
 
   @Prop()
   bio?: string;
+
+  @Prop()
+  licenseImageUrl?: string;
+
+  @Prop()
+  clinicImageUrl?: string;
 }
 
 export const VeterinarianSchema = SchemaFactory.createForClass(Veterinarian);

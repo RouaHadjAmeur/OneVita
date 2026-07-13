@@ -88,6 +88,20 @@ export class SubscriptionsController {
     return this.subscriptionsService.cancel(user._id.toString());
   }
 
+  /**
+   * POST /subscriptions/confirm — called by the client immediately after
+   * Stripe.instance.presentPaymentSheet() succeeds, to activate the
+   * subscription synchronously instead of waiting on the Stripe webhook.
+   */
+  @Post('confirm')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  async confirm(
+    @CurrentUser() user: UserDocument,
+  ): Promise<SubscriptionResponseDto> {
+    return this.subscriptionsService.confirmPayment(user._id.toString());
+  }
+
   @Post('reactivate')
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
@@ -166,6 +180,36 @@ export class SubscriptionsController {
     return {
       message: 'Email verification is no longer required. Your subscription will activate automatically upon payment.',
     };
+  }
+
+  /** GET /subscriptions/billing-history — last 10 invoices */
+  @Get('billing-history')
+  @UseGuards(JwtAuthGuard)
+  async getBillingHistory(
+    @CurrentUser() user: UserDocument,
+  ): Promise<{ invoices: any[] }> {
+    return this.subscriptionsService.getBillingHistory(user._id.toString());
+  }
+
+  /** POST /subscriptions/setup-intent — create Stripe SetupIntent for card collection */
+  @Post('setup-intent')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  async createSetupIntent(
+    @CurrentUser() user: UserDocument,
+  ): Promise<{ clientSecret: string }> {
+    return this.subscriptionsService.createSetupIntent(user._id.toString());
+  }
+
+  /** POST /subscriptions/update-payment-method — attach & set new default card */
+  @Post('update-payment-method')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  async updatePaymentMethod(
+    @CurrentUser() user: UserDocument,
+    @Body() body: { paymentMethodId: string },
+  ): Promise<any> {
+    return this.subscriptionsService.updatePaymentMethod(user._id.toString(), body.paymentMethodId);
   }
 
   @Post('webhook')

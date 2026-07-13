@@ -27,8 +27,8 @@ let PetSittersController = class PetSittersController {
     async create(createSitterDto) {
         return this.petSittersService.create(createSitterDto);
     }
-    async findAll() {
-        return this.petSittersService.findAll();
+    async findAll(excludeUserId) {
+        return this.petSittersService.findAll(excludeUserId);
     }
     async findOne(id) {
         return this.petSittersService.findOne(id);
@@ -57,8 +57,9 @@ __decorate([
 ], PetSittersController.prototype, "create", null);
 __decorate([
     (0, common_1.Get)(),
+    __param(0, (0, common_1.Query)('excludeUserId')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
+    __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
 ], PetSittersController.prototype, "findAll", null);
 __decorate([

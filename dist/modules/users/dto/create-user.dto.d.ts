@@ -28,6 +28,6 @@ export declare class CreateUserDto {
     city?: string;
     hasPhoto?: boolean;
     hasPets?: boolean;
-    provider?: 'local' | 'google';
+    provider?: 'local' | 'google' | 'apple';
     providerId?: string;
 }

@@ -53,13 +53,27 @@ const users_service_1 = require("../users/users.service");
 const user_schema_1 = require("../users/schemas/user.schema");
 const veterinarian_schema_1 = require("./schemas/veterinarian.schema");
 const mail_service_1 = require("../mail/mail.service");
+const cloudinary_service_1 = require("../cloudinary/cloudinary.service");
 const bcrypt = __importStar(require("bcrypt"));
 let VeterinariansService = class VeterinariansService {
-    constructor(userModel, veterinarianModel, usersService, mailService) {
+    constructor(userModel, veterinarianModel, usersService, mailService, cloudinaryService) {
         this.userModel = userModel;
         this.veterinarianModel = veterinarianModel;
         this.usersService = usersService;
         this.mailService = mailService;
+        this.cloudinaryService = cloudinaryService;
+    }
+    async resolveVetImages(vetData) {
+        const result = {};
+        if (vetData.licenseImageBase64) {
+            const uploaded = await this.cloudinaryService.uploadImageFromBase64(vetData.licenseImageBase64, 'veterinarians/licenses');
+            result.licenseImageUrl = uploaded.secure_url;
+        }
+        if (vetData.clinicImageBase64) {
+            const uploaded = await this.cloudinaryService.uploadImageFromBase64(vetData.clinicImageBase64, 'veterinarians/clinics');
+            result.clinicImageUrl = uploaded.secure_url;
+        }
+        return result;
     }
     async create(createVetDto) {
         const existingUser = await this.usersService.findByEmail(createVetDto.email);
@@ -75,6 +89,7 @@ let VeterinariansService = class VeterinariansService {
             balance: 0,
         };
         const createdUser = await new this.userModel(vetData).save();
+        const uploadedImages = await this.resolveVetImages(createVetDto);
         const veterinarian = new this.veterinarianModel({
             user: createdUser._id,
             licenseNumber: createVetDto.licenseNumber,
@@ -85,13 +100,18 @@ let VeterinariansService = class VeterinariansService {
             latitude: createVetDto.latitude,
             longitude: createVetDto.longitude,
             bio: createVetDto.bio,
+            licenseImageUrl: uploadedImages.licenseImageUrl,
+            clinicImageUrl: uploadedImages.clinicImageUrl,
         });
         await veterinarian.save();
         return createdUser;
     }
-    async findAll() {
+    async findAll(excludeUserId) {
+        const filter = excludeUserId && mongoose_2.Types.ObjectId.isValid(excludeUserId)
+            ? { user: { $ne: new mongoose_2.Types.ObjectId(excludeUserId) } }
+            : {};
         const veterinarians = await this.veterinarianModel
-            .find()
+            .find(filter)
             .populate('user')
             .exec();
         return veterinarians.map((vet) => {
@@ -126,6 +146,8 @@ let VeterinariansService = class VeterinariansService {
         user.vetSpecializations = vet.specializations;
         user.vetYearsOfExperience = vet.yearsOfExperience;
         user.vetBio = vet.bio;
+        user.vetLicenseImageUrl = vet.licenseImageUrl;
+        user.vetClinicImageUrl = vet.clinicImageUrl;
         user.latitude = vet.latitude;
         user.longitude = vet.longitude;
         return user;
@@ -181,6 +203,13 @@ let VeterinariansService = class VeterinariansService {
         if (updateVetDto.bio !== undefined) {
             vetFields.bio = updateVetDto.bio;
         }
+        const uploadedImages = await this.resolveVetImages(updateVetDto);
+        if (uploadedImages.licenseImageUrl !== undefined) {
+            vetFields.licenseImageUrl = uploadedImages.licenseImageUrl;
+        }
+        if (uploadedImages.clinicImageUrl !== undefined) {
+            vetFields.clinicImageUrl = uploadedImages.clinicImageUrl;
+        }
         if (Object.keys(userFields).length > 0) {
             await this.userModel.findByIdAndUpdate(id, { $set: userFields }).exec();
         }
@@ -201,6 +230,8 @@ let VeterinariansService = class VeterinariansService {
         user.vetSpecializations = vet.specializations;
         user.vetYearsOfExperience = vet.yearsOfExperience;
         user.vetBio = vet.bio;
+        user.vetLicenseImageUrl = vet.licenseImageUrl;
+        user.vetClinicImageUrl = vet.clinicImageUrl;
         user.latitude = vet.latitude;
         user.longitude = vet.longitude;
         return user;
@@ -224,6 +255,9 @@ let VeterinariansService = class VeterinariansService {
         let veterinarian = await this.veterinarianModel
             .findOne({ user: userId })
             .exec();
+        const uploadedImages = await this.resolveVetImages(vetData);
+        const licenseImageUrl = uploadedImages.licenseImageUrl ?? veterinarian?.licenseImageUrl;
+        const clinicImageUrl = uploadedImages.clinicImageUrl ?? veterinarian?.clinicImageUrl;
         if (veterinarian) {
             veterinarian = await this.veterinarianModel
                 .findOneAndUpdate({ user: userId }, {
@@ -236,6 +270,8 @@ let VeterinariansService = class VeterinariansService {
                     latitude: vetData.latitude,
                     longitude: vetData.longitude,
                     bio: vetData.bio,
+                    licenseImageUrl,
+                    clinicImageUrl,
                 },
             }, { new: true })
                 .populate('user')
@@ -252,6 +288,8 @@ let VeterinariansService = class VeterinariansService {
                 latitude: vetData.latitude,
                 longitude: vetData.longitude,
                 bio: vetData.bio,
+                licenseImageUrl,
+                clinicImageUrl,
             };
             delete vetRecordData.email;
             const vetRecord = new this.veterinarianModel(vetRecordData);
@@ -278,6 +316,7 @@ exports.VeterinariansService = VeterinariansService = __decorate([
     __metadata("design:paramtypes", [mongoose_2.Model,
         mongoose_2.Model,
         users_service_1.UsersService,
-        mail_service_1.MailService])
+        mail_service_1.MailService,
+        cloudinary_service_1.CloudinaryService])
 ], VeterinariansService);
 //# sourceMappingURL=veterinarians.service.js.map

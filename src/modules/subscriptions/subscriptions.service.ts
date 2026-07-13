@@ -119,6 +119,7 @@ export class SubscriptionsService {
 
     let stripeSubscriptionId: string | undefined;
     let stripeCustomerId: string | undefined;
+    let stripePaymentIntentId: string | undefined;
     let clientSecret: string | undefined;
     let currentPeriodStart: Date;
     let currentPeriodEnd: Date;
@@ -177,7 +178,8 @@ export class SubscriptionsService {
         });
 
         clientSecret = paymentIntent.client_secret || undefined;
-        
+        stripePaymentIntentId = paymentIntent.id;
+
         // Set temporary period (will be updated when subscription is created after payment)
         currentPeriodStart = new Date();
         currentPeriodEnd = new Date();
@@ -202,6 +204,7 @@ export class SubscriptionsService {
       canceledOrExpiredSubscription.status = finalStatus;
       canceledOrExpiredSubscription.stripeSubscriptionId = stripeSubscriptionId;
       canceledOrExpiredSubscription.stripeCustomerId = stripeCustomerId;
+      canceledOrExpiredSubscription.stripePaymentIntentId = stripePaymentIntentId;
       canceledOrExpiredSubscription.currentPeriodStart = currentPeriodStart;
       canceledOrExpiredSubscription.currentPeriodEnd = currentPeriodEnd;
       canceledOrExpiredSubscription.cancelAtPeriodEnd = false;
@@ -215,6 +218,7 @@ export class SubscriptionsService {
         status: finalStatus, // PENDING for production (requires payment), ACTIVE for test mode
         stripeSubscriptionId,
         stripeCustomerId,
+        stripePaymentIntentId,
         currentPeriodStart,
         currentPeriodEnd,
         cancelAtPeriodEnd: false,
@@ -565,10 +569,11 @@ export class SubscriptionsService {
 
     if (
       subscription.status !== SubscriptionStatus.ACTIVE &&
-      subscription.status !== SubscriptionStatus.EXPIRES_SOON
+      subscription.status !== SubscriptionStatus.EXPIRES_SOON &&
+      subscription.status !== SubscriptionStatus.PENDING
     ) {
       throw new BadRequestException(
-        'Only active or expires soon subscriptions can be canceled',
+        'Only active, expires soon, or pending subscriptions can be canceled',
       );
     }
 
@@ -797,6 +802,33 @@ export class SubscriptionsService {
   }
 
   /**
+   * Extract the current billing period from a Stripe subscription.
+   *
+   * Newer Stripe API versions moved current_period_start/end off the
+   * Subscription object and onto each SubscriptionItem, so the top-level
+   * fields are undefined here. Fall back to a computed 1-month period if
+   * neither is available, rather than saving an Invalid Date.
+   */
+  private getSubscriptionPeriod(
+    stripeSubscription: Stripe.Subscription,
+  ): { start: Date; end: Date } {
+    const item = stripeSubscription.items?.data?.[0] as any;
+    const startSec =
+      item?.current_period_start ?? (stripeSubscription as any).current_period_start;
+    const endSec =
+      item?.current_period_end ?? (stripeSubscription as any).current_period_end;
+
+    if (startSec && endSec) {
+      return { start: new Date(startSec * 1000), end: new Date(endSec * 1000) };
+    }
+
+    const start = new Date();
+    const end = new Date(start);
+    end.setMonth(end.getMonth() + 1);
+    return { start, end };
+  }
+
+  /**
    * Update subscription from Stripe webhook
    */
   private async updateSubscriptionFromStripe(
@@ -815,14 +847,9 @@ export class SubscriptionsService {
 
     // Update subscription details
     const sub = stripeSubscription as any; // Type assertion for Stripe subscription
-    if (sub.current_period_start) {
-      subscription.currentPeriodStart = new Date(
-        sub.current_period_start * 1000,
-      );
-    }
-    if (sub.current_period_end) {
-      subscription.currentPeriodEnd = new Date(sub.current_period_end * 1000);
-    }
+    const period = this.getSubscriptionPeriod(stripeSubscription);
+    subscription.currentPeriodStart = period.start;
+    subscription.currentPeriodEnd = period.end;
     subscription.cancelAtPeriodEnd = sub.cancel_at_period_end || false;
 
     // Update status based on Stripe status
@@ -1066,18 +1093,29 @@ export class SubscriptionsService {
         }
       }
 
-      // Create Stripe subscription now that payment is complete
-      const stripeSubscription = await this.stripe.subscriptions.create({
+      // Reuse an existing active Stripe subscription for this customer if one
+      // exists (e.g. a previous attempt created it at Stripe but crashed
+      // before saving locally) instead of creating — and billing — a duplicate.
+      const existingSubscriptions = await this.stripe.subscriptions.list({
         customer: customerId,
-        items: [{ price: this.subscriptionPriceId }],
-        default_payment_method: paymentMethodId || undefined,
+        status: 'active',
+        limit: 1,
       });
 
+      const stripeSubscription = existingSubscriptions.data.length > 0
+        ? existingSubscriptions.data[0]
+        : await this.stripe.subscriptions.create({
+            customer: customerId,
+            items: [{ price: this.subscriptionPriceId }],
+            default_payment_method: paymentMethodId || undefined,
+          });
+
       // Update our subscription record
+      const period = this.getSubscriptionPeriod(stripeSubscription);
       subscription.stripeSubscriptionId = stripeSubscription.id;
       subscription.stripeCustomerId = customerId;
-      subscription.currentPeriodStart = new Date((stripeSubscription as any).current_period_start * 1000);
-      subscription.currentPeriodEnd = new Date((stripeSubscription as any).current_period_end * 1000);
+      subscription.currentPeriodStart = period.start;
+      subscription.currentPeriodEnd = period.end;
       subscription.status = SubscriptionStatus.ACTIVE;
       subscription.role = role;
       await subscription.save();
@@ -1093,5 +1131,146 @@ export class SubscriptionsService {
       console.error(`❌ Failed to create subscription after payment for user ${userId}:`, error);
       throw error;
     }
+  }
+
+  /**
+   * Confirm payment and activate immediately (called by the client right after
+   * Stripe.instance.presentPaymentSheet() succeeds).
+   *
+   * This makes activation synchronous with the payment flow instead of relying
+   * solely on the async Stripe webhook, which may be delayed or unreachable
+   * (e.g. no webhook listener forwarding to a local dev backend). The webhook
+   * handler remains in place as a fallback/reconciliation path.
+   */
+  async confirmPayment(userId: string): Promise<SubscriptionResponseDto> {
+    const userObjectId = new Types.ObjectId(userId);
+    const subscription = await this.subscriptionModel.findOne({
+      userId: userObjectId,
+    });
+
+    if (!subscription) {
+      throw new NotFoundException('Subscription not found');
+    }
+
+    if (subscription.status === SubscriptionStatus.ACTIVE) {
+      // Webhook (or a previous call) already activated it.
+      return this.mapToResponseDto(subscription);
+    }
+
+    if (subscription.status !== SubscriptionStatus.PENDING) {
+      throw new BadRequestException(
+        `Subscription is not pending. Current status: ${subscription.status}`,
+      );
+    }
+
+    if (!subscription.stripePaymentIntentId || !this.stripe) {
+      throw new BadRequestException('No payment found to confirm for this subscription');
+    }
+
+    const paymentIntent = await this.stripe.paymentIntents.retrieve(
+      subscription.stripePaymentIntentId,
+    );
+
+    if (paymentIntent.status !== 'succeeded') {
+      throw new BadRequestException(
+        `Payment has not completed yet (status: ${paymentIntent.status})`,
+      );
+    }
+
+    const customerId = paymentIntent.customer as string;
+    const paymentMethodId = paymentIntent.payment_method as string;
+    const role = paymentIntent.metadata?.subscriptionRole || subscription.role;
+
+    await this.createSubscriptionAfterPayment(userId, customerId, role, paymentMethodId);
+
+    const updated = await this.subscriptionModel.findOne({ userId: userObjectId });
+    return this.mapToResponseDto(updated!);
+  }
+
+  /**
+   * Create a Stripe SetupIntent so the client can collect a new card.
+   * Returns { clientSecret } which the mobile app passes to the Stripe SDK.
+   */
+  async createSetupIntent(userId: string): Promise<{ clientSecret: string }> {
+    const subscription = await this.subscriptionModel.findOne({ userId: new Types.ObjectId(userId) });
+    if (!subscription?.stripeCustomerId) {
+      throw new BadRequestException('No active subscription or Stripe customer found');
+    }
+    if (!this.stripe) throw new BadRequestException('Stripe is not configured');
+
+    const setupIntent = await this.stripe.setupIntents.create({
+      customer: subscription.stripeCustomerId,
+      payment_method_types: ['card'],
+      usage: 'off_session',
+    });
+
+    return { clientSecret: setupIntent.client_secret! };
+  }
+
+  /**
+   * Update the default payment method on the Stripe customer + subscription.
+   * Body: { paymentMethodId: string }
+   */
+  async updatePaymentMethod(userId: string, paymentMethodId: string): Promise<SubscriptionResponseDto> {
+    const subscription = await this.subscriptionModel.findOne({ userId: new Types.ObjectId(userId) });
+    if (!subscription?.stripeCustomerId) {
+      throw new BadRequestException('No active subscription found');
+    }
+    if (!this.stripe) throw new BadRequestException('Stripe is not configured');
+
+    // Attach the payment method to the customer
+    try {
+      const pm = await this.stripe.paymentMethods.retrieve(paymentMethodId);
+      if (!pm.customer || pm.customer !== subscription.stripeCustomerId) {
+        await this.stripe.paymentMethods.attach(paymentMethodId, {
+          customer: subscription.stripeCustomerId,
+        });
+      }
+    } catch {
+      await this.stripe.paymentMethods.attach(paymentMethodId, {
+        customer: subscription.stripeCustomerId,
+      });
+    }
+
+    // Set as default on customer
+    await this.stripe.customers.update(subscription.stripeCustomerId, {
+      invoice_settings: { default_payment_method: paymentMethodId },
+    });
+
+    // Also set on the subscription if it exists
+    if (subscription.stripeSubscriptionId) {
+      await this.stripe.subscriptions.update(subscription.stripeSubscriptionId, {
+        default_payment_method: paymentMethodId,
+      });
+    }
+
+    return this.mapToResponseDto(subscription);
+  }
+
+  /**
+   * Return the last 10 Stripe invoices for this user as a plain list.
+   */
+  async getBillingHistory(userId: string): Promise<{ invoices: any[] }> {
+    const subscription = await this.subscriptionModel.findOne({ userId: new Types.ObjectId(userId) });
+    if (!subscription?.stripeCustomerId) return { invoices: [] };
+    if (!this.stripe) return { invoices: [] };
+
+    const invoiceList = await this.stripe.invoices.list({
+      customer: subscription.stripeCustomerId,
+      limit: 10,
+    });
+
+    const invoices = invoiceList.data.map((inv) => ({
+      id: inv.id,
+      amountPaid: inv.amount_paid / 100,
+      currency: inv.currency.toUpperCase(),
+      status: inv.status,
+      date: new Date(inv.created * 1000).toISOString(),
+      invoiceUrl: inv.hosted_invoice_url,
+      pdfUrl: inv.invoice_pdf,
+      description: inv.lines?.data?.[0]?.description ?? 'Subscription',
+    }));
+
+    return { invoices };
   }
 }

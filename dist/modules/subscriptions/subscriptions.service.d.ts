@@ -33,6 +33,7 @@ export declare class SubscriptionsService {
     handleStripeWebhook(event: Stripe.Event): Promise<void>;
     private handlePaymentIntentSucceeded;
     activatePendingSubscription(userId: string): Promise<SubscriptionResponseDto>;
+    private getSubscriptionPeriod;
     private updateSubscriptionFromStripe;
     private handleSubscriptionDeleted;
     checkAndExpireSubscriptions(): Promise<void>;
@@ -40,4 +41,12 @@ export declare class SubscriptionsService {
     private mapToResponseDto;
     activateSubscriptionByStripeId(stripeSubscriptionId: string): Promise<void>;
     createSubscriptionAfterPayment(userId: string, customerId: string, role: string, paymentMethodId: string): Promise<void>;
+    confirmPayment(userId: string): Promise<SubscriptionResponseDto>;
+    createSetupIntent(userId: string): Promise<{
+        clientSecret: string;
+    }>;
+    updatePaymentMethod(userId: string, paymentMethodId: string): Promise<SubscriptionResponseDto>;
+    getBillingHistory(userId: string): Promise<{
+        invoices: any[];
+    }>;
 }

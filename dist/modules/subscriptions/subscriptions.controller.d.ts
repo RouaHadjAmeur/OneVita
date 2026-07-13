@@ -13,6 +13,7 @@ export declare class SubscriptionsController {
     create(user: UserDocument, createSubscriptionDto: CreateSubscriptionDto): Promise<CreateSubscriptionResponseDto>;
     getMySubscription(user: UserDocument): Promise<SubscriptionResponseDto>;
     cancel(user: UserDocument): Promise<CancelSubscriptionResponseDto>;
+    confirm(user: UserDocument): Promise<SubscriptionResponseDto>;
     reactivate(user: UserDocument): Promise<SubscriptionResponseDto>;
     renew(user: UserDocument): Promise<SubscriptionResponseDto>;
     updateRole(user: UserDocument, body: {
@@ -23,6 +24,15 @@ export declare class SubscriptionsController {
     resendVerification(user: UserDocument): Promise<{
         message: string;
     }>;
+    getBillingHistory(user: UserDocument): Promise<{
+        invoices: any[];
+    }>;
+    createSetupIntent(user: UserDocument): Promise<{
+        clientSecret: string;
+    }>;
+    updatePaymentMethod(user: UserDocument, body: {
+        paymentMethodId: string;
+    }): Promise<any>;
     handleWebhook(req: RawBodyRequest<Request>): Promise<{
         received: boolean;
     }>;

@@ -11,6 +11,7 @@ import {
 } from './schemas/veterinarian.schema';
 import { UsersModule } from '../users/users.module';
 import { MailModule } from '../mail/mail.module';
+import { CloudinaryModule } from '../cloudinary/cloudinary.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { MailModule } from '../mail/mail.module';
     ]),
     UsersModule,
     MailModule,
+    CloudinaryModule,
   ],
   controllers: [VeterinariansController],
   providers: [VeterinariansService],

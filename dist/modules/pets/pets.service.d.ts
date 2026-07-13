@@ -5,12 +5,14 @@ import { CreatePetDto } from './dto/create-pet.dto';
 import { UpdatePetDto } from './dto/update-pet.dto';
 import { MedicalHistoryDocument } from './schemas/medical-history.schema';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
+import { AiService } from '../ai/ai.service';
 export declare class PetsService {
     private petModel;
     private userModel;
     private medicalHistoryModel;
     private readonly cloudinaryService;
-    constructor(petModel: Model<PetDocument>, userModel: Model<UserDocument>, medicalHistoryModel: Model<MedicalHistoryDocument>, cloudinaryService: CloudinaryService);
+    private readonly aiService;
+    constructor(petModel: Model<PetDocument>, userModel: Model<UserDocument>, medicalHistoryModel: Model<MedicalHistoryDocument>, cloudinaryService: CloudinaryService, aiService: AiService);
     create(ownerId: string, createPetDto: CreatePetDto, file?: any): Promise<Pet>;
     findAllByOwner(ownerId: string): Promise<Pet[]>;
     findOne(petId: string): Promise<Pet>;

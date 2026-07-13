@@ -54,6 +54,8 @@ const bcrypt = __importStar(require("bcryptjs"));
 const jose_1 = require("jose");
 const GOOGLE_ISS = 'https://accounts.google.com';
 const GOOGLE_JWKS_URL = 'https://www.googleapis.com/oauth2/v3/certs';
+const APPLE_ISS = 'https://appleid.apple.com';
+const APPLE_JWKS_URL = 'https://appleid.apple.com/auth/keys';
 let AuthService = class AuthService {
     constructor(usersService, jwtService, configService, mailService, subscriptionsService) {
         this.usersService = usersService;
@@ -62,6 +64,7 @@ let AuthService = class AuthService {
         this.mailService = mailService;
         this.subscriptionsService = subscriptionsService;
         this.jwks = (0, jose_1.createRemoteJWKSet)(new URL(GOOGLE_JWKS_URL));
+        this.appleJwks = (0, jose_1.createRemoteJWKSet)(new URL(APPLE_JWKS_URL));
         this.accessSecret =
             this.configService.getOrThrow('JWT_ACCESS_SECRET');
         this.refreshSecret =
@@ -110,16 +113,22 @@ let AuthService = class AuthService {
             throw new common_1.BadRequestException('Email already registered');
         const hashedPassword = await bcrypt.hash(password, 10);
         const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+        const isDev = process.env.NODE_ENV !== 'production';
         const createDto = {
             email: normalized,
             name,
             password: hashedPassword,
             role,
-            isVerified: false,
-            verificationCode,
-            verificationCodeExpires: new Date(Date.now() + 10 * 60 * 1000),
+            isVerified: isDev ? true : false,
+            verificationCode: isDev ? undefined : verificationCode,
+            verificationCodeExpires: isDev ? undefined : new Date(Date.now() + 10 * 60 * 1000),
         };
         await this.usersService.create(createDto);
+        if (isDev) {
+            console.log(`[DEV] Auto-verified user ${normalized} — email verification skipped in development`);
+            return { message: 'Registration successful' };
+        }
+        console.log(`[DEV] Verification code for ${normalized}: ${verificationCode}`);
         try {
             await this.mailService.sendVerificationCode(normalized, verificationCode);
         }
@@ -222,6 +231,9 @@ let AuthService = class AuthService {
             verificationCode: newCode,
             verificationCodeExpires: new Date(Date.now() + 10 * 60 * 1000),
         });
+        if (process.env.NODE_ENV !== 'production') {
+            console.log(`[DEV] Resend verification code for ${user.email}: ${newCode}`);
+        }
         try {
             await this.mailService.sendVerificationCode(user.email, newCode);
         }
@@ -286,6 +298,9 @@ let AuthService = class AuthService {
             passwordResetCode: resetCode,
             passwordResetCodeExpires: expires,
         });
+        if (process.env.NODE_ENV !== 'production') {
+            console.log(`[DEV] Password reset code for ${user.email}: ${resetCode}`);
+        }
         try {
             await this.mailService.sendVerificationCode(user.email, resetCode);
         }
@@ -505,6 +520,69 @@ let AuthService = class AuthService {
                 email: user.email,
                 name: user.name,
                 profileImage: user.profileImage,
+                isVerified: user.isVerified,
+            },
+            tokens: { accessToken, refreshToken },
+        };
+    }
+    async signInWithApple(identityToken, clientName) {
+        const bundleId = this.configService.get('APPLE_BUNDLE_ID');
+        if (!bundleId) {
+            throw new common_1.UnauthorizedException('Apple authentication not configured. Missing APPLE_BUNDLE_ID');
+        }
+        let payload;
+        try {
+            const { payload: verified } = await (0, jose_1.jwtVerify)(identityToken, this.appleJwks, {
+                issuer: APPLE_ISS,
+                audience: bundleId,
+            });
+            payload = verified;
+        }
+        catch (error) {
+            console.error('Apple token verification failed:', error);
+            throw new common_1.UnauthorizedException(`Invalid Apple token: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+        const { sub, email, email_verified } = payload;
+        if (!sub) {
+            throw new common_1.UnauthorizedException('Apple token missing user identifier');
+        }
+        const emailVerified = email_verified === true || email_verified === 'true';
+        let user = this.usersService.findByProvider
+            ?
+                await this.usersService.findByProvider('apple', sub)
+            : null;
+        if (!user && email) {
+            user = await this.usersService.findByEmail(email);
+        }
+        if (!user) {
+            const userName = clientName || (email ? email.split('@')[0] : 'Apple User');
+            user = await this.usersService.create({
+                email: email || `apple_${sub}@privaterelay.appleid.com`,
+                name: userName,
+                provider: 'apple',
+                providerId: sub,
+                isVerified: emailVerified,
+            });
+        }
+        else {
+            const needsUpdate = user.provider !== 'apple' || user.providerId !== sub;
+            if (needsUpdate) {
+                user = await this.usersService.update(user._id, {
+                    provider: 'apple',
+                    providerId: sub,
+                });
+            }
+        }
+        const { accessToken, refreshToken } = await this.generateTokensForUser(user);
+        user.hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
+        if (typeof user.save === 'function') {
+            await user.save();
+        }
+        return {
+            user: {
+                id: user._id,
+                email: user.email,
+                name: user.name,
                 isVerified: user.isVerified,
             },
             tokens: { accessToken, refreshToken },

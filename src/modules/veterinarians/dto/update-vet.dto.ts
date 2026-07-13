@@ -53,4 +53,12 @@ export class UpdateVetDto {
   @IsOptional()
   @IsString()
   bio?: string;
+
+  @IsOptional()
+  @IsString()
+  licenseImageBase64?: string;
+
+  @IsOptional()
+  @IsString()
+  clinicImageBase64?: string;
 }

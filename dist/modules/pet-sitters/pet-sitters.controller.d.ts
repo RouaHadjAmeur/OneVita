@@ -6,7 +6,7 @@ export declare class PetSittersController {
     private readonly petSittersService;
     constructor(petSittersService: PetSittersService);
     create(createSitterDto: CreateSitterDto): Promise<User>;
-    findAll(): Promise<User[]>;
+    findAll(excludeUserId?: string): Promise<User[]>;
     findOne(id: string): Promise<User>;
     update(id: string, updateSitterDto: UpdateSitterDto): Promise<User>;
     remove(id: string): Promise<void>;

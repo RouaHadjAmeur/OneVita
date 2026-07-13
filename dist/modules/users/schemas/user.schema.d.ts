@@ -39,7 +39,7 @@ export declare class User extends Document {
     availability?: Date[];
     pets: Types.ObjectId[];
     hasPets?: boolean;
-    provider: 'local' | 'google';
+    provider: 'local' | 'google' | 'apple';
     providerId?: string;
     fcmToken?: string;
 }

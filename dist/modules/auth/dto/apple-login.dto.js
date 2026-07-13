@@ -9,20 +9,18 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.CreateConversationDto = void 0;
+exports.AppleLoginDto = void 0;
 const class_validator_1 = require("class-validator");
-const swagger_1 = require("@nestjs/swagger");
-class CreateConversationDto {
+class AppleLoginDto {
 }
-exports.CreateConversationDto = CreateConversationDto;
+exports.AppleLoginDto = AppleLoginDto;
 __decorate([
-    (0, swagger_1.ApiProperty)({
-        description: 'ID of the participant user to start a conversation with',
-        example: '507f1f77bcf86cd799439011',
-    }),
     (0, class_validator_1.IsString)(),
-    (0, class_validator_1.IsNotEmpty)(),
-    (0, class_validator_1.IsMongoId)(),
     __metadata("design:type", String)
-], CreateConversationDto.prototype, "participantId", void 0);
-//# sourceMappingURL=create-conversation.dto.js.map
+], AppleLoginDto.prototype, "identity_token", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], AppleLoginDto.prototype, "name", void 0);
+//# sourceMappingURL=apple-login.dto.js.map

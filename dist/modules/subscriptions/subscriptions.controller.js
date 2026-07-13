@@ -57,6 +57,9 @@ let SubscriptionsController = class SubscriptionsController {
     async cancel(user) {
         return this.subscriptionsService.cancel(user._id.toString());
     }
+    async confirm(user) {
+        return this.subscriptionsService.confirmPayment(user._id.toString());
+    }
     async reactivate(user) {
         return this.subscriptionsService.reactivate(user._id.toString());
     }
@@ -88,6 +91,15 @@ let SubscriptionsController = class SubscriptionsController {
         return {
             message: 'Email verification is no longer required. Your subscription will activate automatically upon payment.',
         };
+    }
+    async getBillingHistory(user) {
+        return this.subscriptionsService.getBillingHistory(user._id.toString());
+    }
+    async createSetupIntent(user) {
+        return this.subscriptionsService.createSetupIntent(user._id.toString());
+    }
+    async updatePaymentMethod(user, body) {
+        return this.subscriptionsService.updatePaymentMethod(user._id.toString(), body.paymentMethodId);
     }
     async handleWebhook(req) {
         const sig = req.headers['stripe-signature'];
@@ -151,6 +163,15 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], SubscriptionsController.prototype, "cancel", null);
 __decorate([
+    (0, common_1.Post)('confirm'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, common_1.HttpCode)(common_1.HttpStatus.OK),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], SubscriptionsController.prototype, "confirm", null);
+__decorate([
     (0, common_1.Post)('reactivate'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     (0, common_1.HttpCode)(common_1.HttpStatus.OK),
@@ -206,6 +227,33 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", Promise)
 ], SubscriptionsController.prototype, "resendVerification", null);
+__decorate([
+    (0, common_1.Get)('billing-history'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], SubscriptionsController.prototype, "getBillingHistory", null);
+__decorate([
+    (0, common_1.Post)('setup-intent'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, common_1.HttpCode)(common_1.HttpStatus.OK),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], SubscriptionsController.prototype, "createSetupIntent", null);
+__decorate([
+    (0, common_1.Post)('update-payment-method'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, common_1.HttpCode)(common_1.HttpStatus.OK),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], SubscriptionsController.prototype, "updatePaymentMethod", null);
 __decorate([
     (0, common_1.Post)('webhook'),
     (0, common_1.HttpCode)(common_1.HttpStatus.OK),

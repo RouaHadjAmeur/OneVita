@@ -156,6 +156,30 @@ export class FcmService implements OnModuleInit {
   }
 
   /**
+   * Mint a Firebase custom auth token for an already-authenticated user, so
+   * the Flutter app can sign into Firebase (and satisfy Firestore security
+   * rules) without a separate Firebase sign-up/login flow. The uid is our
+   * own Mongo user id, keeping identity consistent across both systems.
+   */
+  async mintCustomToken(uid: string): Promise<string> {
+    if (!this.firebaseApp) {
+      throw new Error('Firebase not initialized');
+    }
+    return admin.auth().createCustomToken(uid);
+  }
+
+  /**
+   * Firestore handle for services that need to read/listen to chat data
+   * written directly by clients (e.g. to trigger a push notification).
+   */
+  getFirestore(): admin.firestore.Firestore {
+    if (!this.firebaseApp) {
+      throw new Error('Firebase not initialized');
+    }
+    return admin.firestore();
+  }
+
+  /**
    * Send notifications to multiple devices
    */
   async sendMulticastNotification(

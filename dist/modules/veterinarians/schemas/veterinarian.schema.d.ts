@@ -11,6 +11,8 @@ export declare class Veterinarian {
     latitude?: number;
     longitude?: number;
     bio?: string;
+    licenseImageUrl?: string;
+    clinicImageUrl?: string;
 }
 export declare const VeterinarianSchema: import("mongoose").Schema<Veterinarian, import("mongoose").Model<Veterinarian, any, any, any, Document<unknown, any, Veterinarian, any, {}> & Veterinarian & Required<{
     _id: Types.ObjectId;

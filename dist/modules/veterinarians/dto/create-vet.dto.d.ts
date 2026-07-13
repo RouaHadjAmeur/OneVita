@@ -11,4 +11,6 @@ export declare class CreateVetDto {
     latitude?: number;
     longitude?: number;
     bio?: string;
+    licenseImageBase64?: string;
+    clinicImageBase64?: string;
 }

@@ -15,6 +15,7 @@ export declare class Subscription extends Document {
     status: SubscriptionStatus;
     stripeSubscriptionId?: string;
     stripeCustomerId?: string;
+    stripePaymentIntentId?: string;
     currentPeriodStart?: Date;
     currentPeriodEnd?: Date;
     cancelAtPeriodEnd?: boolean;

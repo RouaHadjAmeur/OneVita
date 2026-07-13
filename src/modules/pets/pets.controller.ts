@@ -9,6 +9,7 @@ import {
   Put,
   UseInterceptors,
   UploadedFile,
+  UseGuards,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
@@ -18,11 +19,13 @@ import {
   ApiBody,
   ApiParam,
 } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PetsService } from './pets.service';
 import { CreatePetDto } from './dto/create-pet.dto';
 import { UpdatePetDto } from './dto/update-pet.dto';
 
 @ApiTags('pets')
+@UseGuards(JwtAuthGuard)
 @Controller('pets')
 export class PetsController {
   constructor(private readonly petsService: PetsService) {}
