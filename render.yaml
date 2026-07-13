@@ -2,6 +2,7 @@ services:
   - type: web
     name: onevita-backend
     runtime: node
+    plan: free
     buildCommand: npm ci && npm run build
     startCommand: npm run start:prod
     healthCheckPath: /
