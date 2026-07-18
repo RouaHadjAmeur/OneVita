@@ -75,6 +75,10 @@ __decorate([
     (0, mongoose_1.Prop)({ type: String }),
     __metadata("design:type", String)
 ], Booking.prototype, "cancellationReason", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ type: String, maxlength: 2000 }),
+    __metadata("design:type", String)
+], Booking.prototype, "providerNote", void 0);
 exports.Booking = Booking = __decorate([
     (0, mongoose_1.Schema)({ timestamps: true })
 ], Booking);

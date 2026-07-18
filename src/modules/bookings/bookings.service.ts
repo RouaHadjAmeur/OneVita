@@ -8,6 +8,7 @@ import { Model, Types } from 'mongoose';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { UpdateBookingDto } from './dto/update-booking.dto';
 import { Booking, BookingDocument } from './schemas/booking.schema';
+import { Pet, PetDocument } from '../pets/schemas/pet.schema';
 import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
@@ -15,6 +16,8 @@ export class BookingsService {
   constructor(
     @InjectModel(Booking.name)
     private readonly bookingModel: Model<BookingDocument>,
+    @InjectModel(Pet.name)
+    private readonly petModel: Model<PetDocument>,
     private readonly notificationsService: NotificationsService,
   ) {}
 
@@ -22,6 +25,22 @@ export class BookingsService {
     userId: string,
     createBookingDto: CreateBookingDto,
   ): Promise<BookingDocument> {
+    if (!createBookingDto.petId) {
+      throw new ForbiddenException('A pet must be selected for this booking');
+    }
+    const selectedPet = await this.petModel
+      .findOne({
+        _id: new Types.ObjectId(createBookingDto.petId),
+        owner: new Types.ObjectId(userId),
+      })
+      .select('_id')
+      .exec();
+    if (!selectedPet) {
+      throw new ForbiddenException(
+        'The selected pet does not belong to this account',
+      );
+    }
+
     const booking = new this.bookingModel({
       owner: new Types.ObjectId(userId),
       provider: new Types.ObjectId(createBookingDto.providerId),
@@ -94,27 +113,35 @@ export class BookingsService {
   }
 
   async findOne(id: string, userId: string): Promise<BookingDocument> {
-    const booking = await this.bookingModel
-      .findById(id)
-      .populate([
-        { path: 'owner', select: 'name email profileImage' },
-        { path: 'provider', select: 'name email profileImage' },
-        { path: 'pet', select: 'name species breed' },
-      ])
-      .exec();
+    const booking = await this.bookingModel.findById(id).exec();
 
     if (!booking) {
       throw new NotFoundException(`Booking with ID ${id} not found`);
     }
 
-    // Verify user has access to this booking
-    // `owner` and `provider` are populated above, so compare their `_id`
-    // values rather than stringifying the populated Mongoose documents.
-    const ownerId = String((booking.owner as any)?._id ?? booking.owner);
-    const providerId = String((booking.provider as any)?._id ?? booking.provider);
+    const ownerId = String(booking.owner);
+    const providerId = String(booking.provider);
     if (ownerId !== userId && providerId !== userId) {
       throw new ForbiddenException('You do not have access to this booking');
     }
+
+    const canSeeFullPet =
+      ownerId === userId ||
+      (providerId === userId &&
+        ['accepted', 'completed'].includes(booking.status));
+
+    await booking.populate([
+      { path: 'owner', select: 'name email profileImage' },
+      { path: 'provider', select: 'name email profileImage' },
+      canSeeFullPet
+        ? {
+            path: 'pet',
+            select:
+              'name species breed age gender color weight height photo microchipId medicalHistory',
+            populate: { path: 'medicalHistory' },
+          }
+        : { path: 'pet', select: 'name species breed' },
+    ]);
 
     return booking;
   }
@@ -138,8 +165,45 @@ export class BookingsService {
       );
     }
 
-    // Update booking
+    // Only pending requests can be accepted or rejected. Accepted
+    // appointments can later be marked completed by the provider.
+    if (
+      updateBookingDto.status &&
+      ['accepted', 'rejected'].includes(updateBookingDto.status) &&
+      booking.status !== 'pending'
+    ) {
+      throw new ForbiddenException(
+        'Only pending bookings can be accepted or rejected',
+      );
+    }
+    if (
+      updateBookingDto.status === 'completed' &&
+      booking.status !== 'accepted'
+    ) {
+      throw new ForbiddenException(
+        'Only accepted bookings can be marked completed',
+      );
+    }
+
+    // Update booking status and/or the provider's appointment note.
     const updateData: any = { ...updateBookingDto };
+
+    if (updateBookingDto.dateTime) {
+      updateData.dateTime = new Date(updateBookingDto.dateTime);
+      await this.notificationsService.create({
+        recipientId: String(booking.owner),
+        senderId: userId,
+        type: 'booking_rescheduled',
+        title: 'New Appointment Time Suggested',
+        message: `A new time was suggested for your ${booking.serviceType} booking.`,
+        bookingId: id,
+        metadata: {
+          bookingId: id,
+          serviceType: booking.serviceType,
+          dateTime: updateBookingDto.dateTime,
+        },
+      });
+    }
 
     if (
       updateBookingDto.status === 'rejected' &&
@@ -178,6 +242,8 @@ export class BookingsService {
           rejectionReason: updateBookingDto.rejectionReason,
         },
       });
+    } else if (updateBookingDto.status === 'completed') {
+      updateData.completedAt = new Date();
     }
 
     const updatedBooking = await this.bookingModel

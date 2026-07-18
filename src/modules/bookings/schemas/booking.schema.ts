@@ -50,6 +50,9 @@ export class Booking {
 
   @Prop({ type: String })
   cancellationReason?: string; // Reason for cancellation
+
+  @Prop({ type: String, maxlength: 2000 })
+  providerNote?: string; // Appointment/pet note written by the provider
 }
 
 export const BookingSchema = SchemaFactory.createForClass(Booking);

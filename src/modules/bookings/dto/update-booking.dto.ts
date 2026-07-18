@@ -1,4 +1,10 @@
-import { IsString, IsEnum, IsOptional, IsDateString } from 'class-validator';
+import {
+  IsString,
+  IsEnum,
+  IsOptional,
+  MaxLength,
+  IsDateString,
+} from 'class-validator';
 
 export class UpdateBookingDto {
   @IsEnum(['pending', 'accepted', 'rejected', 'completed', 'cancelled'])
@@ -12,4 +18,13 @@ export class UpdateBookingDto {
   @IsString()
   @IsOptional()
   cancellationReason?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(2000)
+  providerNote?: string;
+
+  @IsDateString()
+  @IsOptional()
+  dateTime?: string;
 }

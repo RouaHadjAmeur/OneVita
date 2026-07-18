@@ -17,13 +17,28 @@ const common_1 = require("@nestjs/common");
 const mongoose_1 = require("@nestjs/mongoose");
 const mongoose_2 = require("mongoose");
 const booking_schema_1 = require("./schemas/booking.schema");
+const pet_schema_1 = require("../pets/schemas/pet.schema");
 const notifications_service_1 = require("../notifications/notifications.service");
 let BookingsService = class BookingsService {
-    constructor(bookingModel, notificationsService) {
+    constructor(bookingModel, petModel, notificationsService) {
         this.bookingModel = bookingModel;
+        this.petModel = petModel;
         this.notificationsService = notificationsService;
     }
     async create(userId, createBookingDto) {
+        if (!createBookingDto.petId) {
+            throw new common_1.ForbiddenException('A pet must be selected for this booking');
+        }
+        const selectedPet = await this.petModel
+            .findOne({
+            _id: new mongoose_2.Types.ObjectId(createBookingDto.petId),
+            owner: new mongoose_2.Types.ObjectId(userId),
+        })
+            .select('_id')
+            .exec();
+        if (!selectedPet) {
+            throw new common_1.ForbiddenException('The selected pet does not belong to this account');
+        }
         const booking = new this.bookingModel({
             owner: new mongoose_2.Types.ObjectId(userId),
             provider: new mongoose_2.Types.ObjectId(createBookingDto.providerId),
@@ -85,22 +100,29 @@ let BookingsService = class BookingsService {
         return bookings;
     }
     async findOne(id, userId) {
-        const booking = await this.bookingModel
-            .findById(id)
-            .populate([
-            { path: 'owner', select: 'name email profileImage' },
-            { path: 'provider', select: 'name email profileImage' },
-            { path: 'pet', select: 'name species breed' },
-        ])
-            .exec();
+        const booking = await this.bookingModel.findById(id).exec();
         if (!booking) {
             throw new common_1.NotFoundException(`Booking with ID ${id} not found`);
         }
-        const ownerId = String(booking.owner?._id ?? booking.owner);
-        const providerId = String(booking.provider?._id ?? booking.provider);
+        const ownerId = String(booking.owner);
+        const providerId = String(booking.provider);
         if (ownerId !== userId && providerId !== userId) {
             throw new common_1.ForbiddenException('You do not have access to this booking');
         }
+        const canSeeFullPet = ownerId === userId ||
+            (providerId === userId &&
+                ['accepted', 'completed'].includes(booking.status));
+        await booking.populate([
+            { path: 'owner', select: 'name email profileImage' },
+            { path: 'provider', select: 'name email profileImage' },
+            canSeeFullPet
+                ? {
+                    path: 'pet',
+                    select: 'name species breed age gender color weight height photo microchipId medicalHistory',
+                    populate: { path: 'medicalHistory' },
+                }
+                : { path: 'pet', select: 'name species breed' },
+        ]);
         return booking;
     }
     async update(id, userId, updateBookingDto) {
@@ -112,7 +134,32 @@ let BookingsService = class BookingsService {
         if (providerId !== userId) {
             throw new common_1.ForbiddenException('Only the service provider can update booking status');
         }
+        if (updateBookingDto.status &&
+            ['accepted', 'rejected'].includes(updateBookingDto.status) &&
+            booking.status !== 'pending') {
+            throw new common_1.ForbiddenException('Only pending bookings can be accepted or rejected');
+        }
+        if (updateBookingDto.status === 'completed' &&
+            booking.status !== 'accepted') {
+            throw new common_1.ForbiddenException('Only accepted bookings can be marked completed');
+        }
         const updateData = { ...updateBookingDto };
+        if (updateBookingDto.dateTime) {
+            updateData.dateTime = new Date(updateBookingDto.dateTime);
+            await this.notificationsService.create({
+                recipientId: String(booking.owner),
+                senderId: userId,
+                type: 'booking_rescheduled',
+                title: 'New Appointment Time Suggested',
+                message: `A new time was suggested for your ${booking.serviceType} booking.`,
+                bookingId: id,
+                metadata: {
+                    bookingId: id,
+                    serviceType: booking.serviceType,
+                    dateTime: updateBookingDto.dateTime,
+                },
+            });
+        }
         if (updateBookingDto.status === 'rejected' &&
             updateBookingDto.rejectionReason) {
             updateData.rejectionReason = updateBookingDto.rejectionReason;
@@ -147,6 +194,9 @@ let BookingsService = class BookingsService {
                 },
             });
         }
+        else if (updateBookingDto.status === 'completed') {
+            updateData.completedAt = new Date();
+        }
         const updatedBooking = await this.bookingModel
             .findByIdAndUpdate(id, { $set: updateData }, { new: true })
             .populate([
@@ -174,7 +224,9 @@ exports.BookingsService = BookingsService;
 exports.BookingsService = BookingsService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, mongoose_1.InjectModel)(booking_schema_1.Booking.name)),
+    __param(1, (0, mongoose_1.InjectModel)(pet_schema_1.Pet.name)),
     __metadata("design:paramtypes", [mongoose_2.Model,
+        mongoose_2.Model,
         notifications_service_1.NotificationsService])
 ], BookingsService);
 //# sourceMappingURL=bookings.service.js.map

@@ -15,8 +15,7 @@ export class CreateBookingDto {
   providerType: 'vet' | 'sitter';
 
   @IsString()
-  @IsOptional()
-  petId?: string;
+  petId: string;
 
   @IsString()
   @MinLength(1)
