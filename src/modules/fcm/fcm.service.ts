@@ -165,7 +165,21 @@ export class FcmService implements OnModuleInit {
     if (!this.firebaseApp) {
       throw new Error('Firebase not initialized');
     }
-    return admin.auth().createCustomToken(uid);
+
+    try {
+      this.logger.log(`Minting Firebase custom token for uid=${uid}`);
+      return await this.firebaseApp.auth().createCustomToken(uid);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : JSON.stringify(error);
+      const stack = error instanceof Error ? error.stack : undefined;
+
+      this.logger.error(
+        `Failed to mint Firebase custom token for uid=${uid}: ${message}`,
+        stack,
+      );
+      throw error;
+    }
   }
 
   /**
