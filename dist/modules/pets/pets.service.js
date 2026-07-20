@@ -21,11 +21,13 @@ const user_schema_1 = require("../users/schemas/user.schema");
 const medical_history_schema_1 = require("./schemas/medical-history.schema");
 const cloudinary_service_1 = require("../cloudinary/cloudinary.service");
 const ai_service_1 = require("../ai/ai.service");
+const booking_schema_1 = require("../bookings/schemas/booking.schema");
 let PetsService = class PetsService {
-    constructor(petModel, userModel, medicalHistoryModel, cloudinaryService, aiService) {
+    constructor(petModel, userModel, medicalHistoryModel, bookingModel, cloudinaryService, aiService) {
         this.petModel = petModel;
         this.userModel = userModel;
         this.medicalHistoryModel = medicalHistoryModel;
+        this.bookingModel = bookingModel;
         this.cloudinaryService = cloudinaryService;
         this.aiService = aiService;
     }
@@ -95,7 +97,9 @@ let PetsService = class PetsService {
                     pet[key] = value;
                 });
             }
-            if (petUpdateEntries.length > 0 || file || (photoBase64 && typeof photoBase64 === 'string')) {
+            if (petUpdateEntries.length > 0 ||
+                file ||
+                (photoBase64 && typeof photoBase64 === 'string')) {
                 await pet.save();
             }
             if (medicalHistory) {
@@ -123,6 +127,7 @@ let PetsService = class PetsService {
                     }
                 }
             }
+            this.aiService.clearCacheForPet(petId);
             return this.findOne(petId);
         }
         catch (error) {
@@ -147,6 +152,7 @@ let PetsService = class PetsService {
             $pull: { pets: new mongoose_2.Types.ObjectId(petId) },
         });
         await this.medicalHistoryModel.findOneAndDelete({ pet: pet._id });
+        await this.bookingModel.deleteMany({ pet: pet._id });
         this.aiService.clearCacheForPet(petId);
     }
     extractPublicId(imageUrl) {
@@ -165,7 +171,9 @@ exports.PetsService = PetsService = __decorate([
     __param(0, (0, mongoose_1.InjectModel)(pet_schema_1.Pet.name)),
     __param(1, (0, mongoose_1.InjectModel)(user_schema_1.User.name)),
     __param(2, (0, mongoose_1.InjectModel)(medical_history_schema_1.MedicalHistory.name)),
+    __param(3, (0, mongoose_1.InjectModel)(booking_schema_1.Booking.name)),
     __metadata("design:paramtypes", [mongoose_2.Model,
+        mongoose_2.Model,
         mongoose_2.Model,
         mongoose_2.Model,
         cloudinary_service_1.CloudinaryService,

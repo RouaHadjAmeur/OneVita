@@ -21,9 +21,13 @@ const ai_tips_response_dto_1 = require("./dto/ai-tips-response.dto");
 const ai_recommendations_response_dto_1 = require("./dto/ai-recommendations-response.dto");
 const ai_reminders_response_dto_1 = require("./dto/ai-reminders-response.dto");
 const ai_status_response_dto_1 = require("./dto/ai-status-response.dto");
+const ai_health_report_response_dto_1 = require("./dto/ai-health-report-response.dto");
 let AiController = class AiController {
     constructor(aiService) {
         this.aiService = aiService;
+    }
+    async getHealthReport(petId, refresh) {
+        return this.aiService.generateHealthReport(petId, refresh === 'true');
     }
     async getTips(petId) {
         try {
@@ -113,6 +117,22 @@ let AiController = class AiController {
     }
 };
 exports.AiController = AiController;
+__decorate([
+    (0, common_1.Get)('pets/:petId/report'),
+    (0, common_1.HttpCode)(common_1.HttpStatus.OK),
+    (0, swagger_1.ApiOperation)({ summary: 'Generate a complete AI health report for a pet' }),
+    (0, swagger_1.ApiParam)({ name: 'petId', description: 'Pet ID' }),
+    (0, swagger_1.ApiResponse)({
+        status: 200,
+        description: 'Successfully generated health report',
+        type: ai_health_report_response_dto_1.AiHealthReportResponseDto,
+    }),
+    __param(0, (0, common_1.Param)('petId')),
+    __param(1, (0, common_1.Query)('refresh')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", Promise)
+], AiController.prototype, "getHealthReport", null);
 __decorate([
     (0, common_1.Get)('pets/:petId/tips'),
     (0, common_1.HttpCode)(common_1.HttpStatus.OK),

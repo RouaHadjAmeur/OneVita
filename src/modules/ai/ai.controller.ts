@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Param,
+  Query,
   UseGuards,
   HttpCode,
   HttpStatus,
@@ -21,6 +22,7 @@ import { AiTipsResponseDto } from './dto/ai-tips-response.dto';
 import { AiRecommendationsResponseDto } from './dto/ai-recommendations-response.dto';
 import { AiRemindersResponseDto } from './dto/ai-reminders-response.dto';
 import { AiStatusResponseDto } from './dto/ai-status-response.dto';
+import { AiHealthReportResponseDto } from './dto/ai-health-report-response.dto';
 
 @ApiTags('ai')
 @Controller('ai')
@@ -28,6 +30,22 @@ import { AiStatusResponseDto } from './dto/ai-status-response.dto';
 @ApiBearerAuth()
 export class AiController {
   constructor(private readonly aiService: AiService) {}
+
+  @Get('pets/:petId/report')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Generate a complete AI health report for a pet' })
+  @ApiParam({ name: 'petId', description: 'Pet ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Successfully generated health report',
+    type: AiHealthReportResponseDto,
+  })
+  async getHealthReport(
+    @Param('petId') petId: string,
+    @Query('refresh') refresh?: string,
+  ): Promise<AiHealthReportResponseDto> {
+    return this.aiService.generateHealthReport(petId, refresh === 'true');
+  }
 
   @Get('pets/:petId/tips')
   @HttpCode(HttpStatus.OK)

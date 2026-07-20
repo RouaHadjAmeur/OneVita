@@ -31,6 +31,7 @@ let AiService = AiService_1 = class AiService {
         this.recommendationsCache = new Map();
         this.remindersCache = new Map();
         this.statusCache = new Map();
+        this.reportCache = new Map();
     }
     async getPetWithHistory(petId) {
         const pet = await this.petModel.findById(petId).populate('medicalHistory');
@@ -487,6 +488,84 @@ Return ONLY the status word/phrase, nothing else.`;
         this.recommendationsCache.delete(petId);
         this.remindersCache.delete(petId);
         this.statusCache.delete(petId);
+        this.reportCache.delete(petId);
+    }
+    async generateHealthReport(petId, forceRefresh = false) {
+        if (!forceRefresh) {
+            const cached = this.getCached(this.reportCache, petId);
+            if (cached)
+                return cached;
+        }
+        const { pet, medicalHistory } = await this.getPetWithHistory(petId);
+        const vaccinations = medicalHistory?.vaccinations ?? [];
+        const conditions = medicalHistory?.chronicConditions ?? [];
+        const medications = medicalHistory?.currentMedications ?? [];
+        const prompt = `You are a cautious veterinary-assistant AI. Generate a complete, personalized health report for the pet below.
+
+Pet record (this is the only source of pet-specific facts):
+- Name: ${pet.name}
+- Species: ${pet.species}
+- Breed: ${pet.breed || 'Not recorded'}
+- Age in years: ${pet.age ?? 'Not recorded'}
+- Gender: ${pet.gender || 'Not recorded'}
+- Weight in kg: ${pet.weight ?? 'Not recorded'}
+- Recorded vaccinations: ${vaccinations.length ? vaccinations.join(', ') : 'None recorded'}
+- Recorded chronic conditions: ${conditions.length ? conditions.join(', ') : 'None recorded'}
+- Current medications: ${medications.length ? medications.map((med) => `${med.name} (${med.dosage})`).join(', ') : 'None recorded'}
+
+Return ONLY valid JSON using exactly this shape:
+{
+  "status": "short overall status",
+  "dailyTip": "one personalized actionable tip",
+  "summary": "2-3 sentence personalized summary",
+  "missingVaccinations": ["vaccine names that appear due or unrecorded"],
+  "chronicConditionNotes": ["one useful monitoring note per recorded condition"],
+  "recommendedActions": ["3-5 prioritized, concrete actions"]
+}
+
+Rules:
+- Tailor every section to this record; do not use a generic template.
+- Never invent a diagnosis, administered vaccine, medication, symptom, test result, or appointment.
+- Treat absent vaccination records as unverified, not proof that a vaccine was never given.
+- Infer commonly recommended vaccines only from species and age, and phrase uncertainty clearly in the summary/actions.
+- If there are no chronic conditions recorded, chronicConditionNotes must be [].
+- Keep advice concise and recommend a veterinarian when clinical assessment is needed.`;
+        const response = await this.geminiService.generateText(prompt, {
+            temperature: 0.85,
+            maxTokens: 2500,
+        });
+        const jsonText = response
+            .trim()
+            .replace(/^```(?:json)?\s*/i, '')
+            .replace(/\s*```$/, '');
+        let parsed;
+        try {
+            parsed = JSON.parse(jsonText);
+        }
+        catch {
+            this.logger.error(`Invalid health report JSON for pet ${petId}`);
+            throw new Error('AI returned an invalid health report. Please try again.');
+        }
+        if (typeof parsed.status !== 'string' ||
+            typeof parsed.dailyTip !== 'string' ||
+            typeof parsed.summary !== 'string' ||
+            !Array.isArray(parsed.missingVaccinations) ||
+            !Array.isArray(parsed.chronicConditionNotes) ||
+            !Array.isArray(parsed.recommendedActions)) {
+            throw new Error('AI returned an incomplete health report. Please try again.');
+        }
+        const result = {
+            status: parsed.status,
+            dailyTip: parsed.dailyTip,
+            summary: parsed.summary,
+            missingVaccinations: parsed.missingVaccinations.filter((item) => typeof item === 'string'),
+            chronicConditionNotes: parsed.chronicConditionNotes.filter((item) => typeof item === 'string'),
+            recommendedActions: parsed.recommendedActions.filter((item) => typeof item === 'string'),
+            generatedAt: new Date().toISOString(),
+            disclaimer: 'AI-generated guidance only; consult a licensed veterinarian for diagnosis and treatment.',
+        };
+        this.setCached(this.reportCache, petId, result);
+        return result;
     }
     async generateTips(petId) {
         const cached = this.getCached(this.tipsCache, petId);

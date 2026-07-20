@@ -12,6 +12,7 @@ import {
 } from './schemas/medical-history.schema';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import { AiService } from '../ai/ai.service';
+import { Booking, BookingDocument } from '../bookings/schemas/booking.schema';
 
 @Injectable()
 export class PetsService {
@@ -20,6 +21,8 @@ export class PetsService {
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectModel(MedicalHistory.name)
     private medicalHistoryModel: Model<MedicalHistoryDocument>,
+    @InjectModel(Booking.name)
+    private bookingModel: Model<BookingDocument>,
     private readonly cloudinaryService: CloudinaryService,
     private readonly aiService: AiService,
   ) {}
@@ -124,7 +127,11 @@ export class PetsService {
       // Always save if any field changed OR if a new photo was uploaded.
       // Without this guard, uploading a photo with no other fields changed
       // would set pet.photo in memory but never persist it to MongoDB.
-      if (petUpdateEntries.length > 0 || file || (photoBase64 && typeof photoBase64 === 'string')) {
+      if (
+        petUpdateEntries.length > 0 ||
+        file ||
+        (photoBase64 && typeof photoBase64 === 'string')
+      ) {
         await pet.save();
       }
 
@@ -164,6 +171,9 @@ export class PetsService {
         }
       }
 
+      // Pet facts changed, so no previously generated AI response is valid.
+      this.aiService.clearCacheForPet(petId);
+
       return this.findOne(petId);
     } catch (error) {
       console.error('Error updating pet:', error);
@@ -191,6 +201,11 @@ export class PetsService {
     });
 
     await this.medicalHistoryModel.findOneAndDelete({ pet: pet._id });
+
+    // A booking cannot remain valid after its pet has been deleted. Removing
+    // these server-side guarantees the cascade even when a client has a stale
+    // or incomplete local booking list.
+    await this.bookingModel.deleteMany({ pet: pet._id });
 
     this.aiService.clearCacheForPet(petId);
   }

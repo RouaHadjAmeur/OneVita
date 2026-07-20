@@ -6,6 +6,7 @@ import { AiTipsResponseDto } from './dto/ai-tips-response.dto';
 import { AiRecommendationsResponseDto } from './dto/ai-recommendations-response.dto';
 import { AiRemindersResponseDto } from './dto/ai-reminders-response.dto';
 import { AiStatusResponseDto } from './dto/ai-status-response.dto';
+import { AiHealthReportResponseDto } from './dto/ai-health-report-response.dto';
 export declare class AiService {
     private petModel;
     private medicalHistoryModel;
@@ -16,6 +17,7 @@ export declare class AiService {
     private recommendationsCache;
     private remindersCache;
     private statusCache;
+    private reportCache;
     constructor(petModel: Model<PetDocument>, medicalHistoryModel: Model<MedicalHistoryDocument>, geminiService: GeminiService);
     private getPetWithHistory;
     private buildTipsPrompt;
@@ -30,6 +32,7 @@ export declare class AiService {
     private getCached;
     private setCached;
     clearCacheForPet(petId: string): void;
+    generateHealthReport(petId: string, forceRefresh?: boolean): Promise<AiHealthReportResponseDto>;
     generateTips(petId: string): Promise<AiTipsResponseDto>;
     private fetchAndCacheTips;
     private refreshCacheInBackground;

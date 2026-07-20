@@ -11,6 +11,7 @@ import {
 } from './schemas/medical-history.schema';
 import { CloudinaryModule } from '../cloudinary/cloudinary.module';
 import { AiModule } from '../ai/ai.module';
+import { Booking, BookingSchema } from '../bookings/schemas/booking.schema';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { AiModule } from '../ai/ai.module';
       { name: Pet.name, schema: PetSchema },
       { name: User.name, schema: UserSchema },
       { name: MedicalHistory.name, schema: MedicalHistorySchema },
+      { name: Booking.name, schema: BookingSchema },
     ]),
     CloudinaryModule,
     AiModule,
