@@ -25,8 +25,15 @@ export class ChatNotificationsService implements OnModuleInit {
   ) {}
 
   onModuleInit() {
-    this.fcmService
-      .getFirestore()
+    const firestore = this.fcmService.getFirestore();
+    if (!firestore) {
+      this.logger.warn(
+        'Chat push listener disabled because Firebase is not configured',
+      );
+      return;
+    }
+
+    firestore
       .collectionGroup('messages')
       .where('createdAt', '>', this.startedAt)
       .onSnapshot(
@@ -65,8 +72,7 @@ export class ChatNotificationsService implements OnModuleInit {
 
     const senderName =
       (data.senderName as string | undefined) ||
-      (await this.userModel.findById(senderId).select('name').exec())
-        ?.name ||
+      (await this.userModel.findById(senderId).select('name').exec())?.name ||
       'Someone';
 
     try {

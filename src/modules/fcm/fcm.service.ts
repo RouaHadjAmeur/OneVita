@@ -3,6 +3,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import * as admin from 'firebase-admin';
 import { ConfigService } from '@nestjs/config';
+import { existsSync, readFileSync } from 'node:fs';
 
 @Injectable()
 export class FcmService implements OnModuleInit {
@@ -26,7 +27,35 @@ export class FcmService implements OnModuleInit {
         // Not initialized yet, continue
       }
 
-      // Only use individual environment variables
+      const serviceAccountPath =
+        this.configService.get<string>('FIREBASE_SERVICE_ACCOUNT_PATH') ||
+        this.configService.get<string>('GOOGLE_APPLICATION_CREDENTIALS') ||
+        '/etc/secrets/firebase-service-account.json';
+
+      if (existsSync(serviceAccountPath)) {
+        const raw = readFileSync(serviceAccountPath, 'utf8');
+        const parsed = JSON.parse(raw) as {
+          project_id?: string;
+          private_key?: string;
+          client_email?: string;
+        };
+        if (!parsed.project_id || !parsed.private_key || !parsed.client_email) {
+          throw new Error(
+            `Firebase secret file at ${serviceAccountPath} is missing project_id, private_key, or client_email`,
+          );
+        }
+        this.firebaseApp = admin.initializeApp({
+          credential: admin.credential.cert({
+            projectId: parsed.project_id,
+            privateKey: parsed.private_key,
+            clientEmail: parsed.client_email,
+          }),
+        });
+        this.logger.log('Firebase Admin initialized from secret file');
+        return;
+      }
+
+      // Fall back to individual environment variables.
       const projectId = this.configService.get<string>('FIREBASE_PROJECT_ID');
       const privateKey = this.configService
         .get<string>('FIREBASE_PRIVATE_KEY')
@@ -50,7 +79,7 @@ export class FcmService implements OnModuleInit {
       }
 
       throw new Error(
-        'Missing Firebase environment variables. Please set FIREBASE_PROJECT_ID, FIREBASE_PRIVATE_KEY, and FIREBASE_CLIENT_EMAIL in your .env file.',
+        `Firebase credentials not found. Add a secret file at ${serviceAccountPath}, set FIREBASE_SERVICE_ACCOUNT_PATH, or configure FIREBASE_PROJECT_ID, FIREBASE_PRIVATE_KEY, and FIREBASE_CLIENT_EMAIL.`,
       );
     } catch (error) {
       this.logger.error('Failed to initialize Firebase Admin SDK', error);
@@ -186,9 +215,12 @@ export class FcmService implements OnModuleInit {
    * Firestore handle for services that need to read/listen to chat data
    * written directly by clients (e.g. to trigger a push notification).
    */
-  getFirestore(): admin.firestore.Firestore {
+  getFirestore(): admin.firestore.Firestore | null {
     if (!this.firebaseApp) {
-      throw new Error('Firebase not initialized');
+      this.logger.warn(
+        'Firebase not initialized, Firestore integration is disabled',
+      );
+      return null;
     }
     return admin.firestore();
   }
