@@ -17,6 +17,7 @@ import { AiModule } from './modules/ai/ai.module';
 import { FcmModule } from './modules/fcm/fcm.module';
 import { ChatbotModule } from './modules/chatbot/chatbot.module';
 import { CommunityModule } from './modules/community/community.module';
+import { HumanHealthModule } from './modules/human-health/human-health.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { CommunityModule } from './modules/community/community.module';
     FcmModule,
     ChatbotModule,
     CommunityModule,
+    HumanHealthModule,
   ],
   controllers: [AppController],
   providers: [AppService],

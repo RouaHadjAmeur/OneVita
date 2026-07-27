@@ -25,6 +25,7 @@ const ai_module_1 = require("./modules/ai/ai.module");
 const fcm_module_1 = require("./modules/fcm/fcm.module");
 const chatbot_module_1 = require("./modules/chatbot/chatbot.module");
 const community_module_1 = require("./modules/community/community.module");
+const human_health_module_1 = require("./modules/human-health/human-health.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -46,6 +47,7 @@ exports.AppModule = AppModule = __decorate([
             fcm_module_1.FcmModule,
             chatbot_module_1.ChatbotModule,
             community_module_1.CommunityModule,
+            human_health_module_1.HumanHealthModule,
         ],
         controllers: [app_controller_1.AppController],
         providers: [app_service_1.AppService],
