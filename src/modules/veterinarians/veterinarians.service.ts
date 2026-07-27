@@ -109,12 +109,16 @@ export class VeterinariansService {
         : {};
     const veterinarians = await this.veterinarianModel
       .find(filter)
-      .populate('user')
+      .populate({
+        path: 'user',
+        match: { role: 'vet', hasActiveSubscription: true },
+      })
       .exec();
-    return veterinarians.map((vet) => {
-      const user = vet.user as unknown as UserDocument;
+
+    return veterinarians.flatMap((vet) => {
+      const user = vet.user as unknown as UserDocument | null;
       if (!user || !('_id' in user)) {
-        throw new NotFoundException('User not populated correctly');
+        return [];
       }
       // Merge latitude and longitude from Veterinarian into User document
       if (vet.latitude !== undefined) {
@@ -123,21 +127,24 @@ export class VeterinariansService {
       if (vet.longitude !== undefined) {
         (user as any).longitude = vet.longitude;
       }
-      return user;
+      return [user];
     });
   }
 
   async findOne(id: string): Promise<UserDocument> {
     const vet = await this.veterinarianModel
       .findOne({ user: id })
-      .populate('user')
+      .populate({
+        path: 'user',
+        match: { role: 'vet', hasActiveSubscription: true },
+      })
       .exec();
     if (!vet) {
       throw new NotFoundException(`Veterinarian with ID ${id} not found`);
     }
     const user = vet.user as unknown as UserDocument;
     if (!user || !('_id' in user)) {
-      throw new NotFoundException('User not populated correctly');
+      throw new NotFoundException(`Veterinarian with ID ${id} not found`);
     }
     // Merge all vet fields into User document for client consumption
     (user as any).vetLicenseNumber = vet.licenseNumber;
