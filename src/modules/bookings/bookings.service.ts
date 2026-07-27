@@ -9,6 +9,7 @@ import { CreateBookingDto } from './dto/create-booking.dto';
 import { UpdateBookingDto } from './dto/update-booking.dto';
 import { Booking, BookingDocument } from './schemas/booking.schema';
 import { Pet, PetDocument } from '../pets/schemas/pet.schema';
+import { User, UserDocument } from '../users/schemas/user.schema';
 import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
@@ -18,8 +19,30 @@ export class BookingsService {
     private readonly bookingModel: Model<BookingDocument>,
     @InjectModel(Pet.name)
     private readonly petModel: Model<PetDocument>,
+    @InjectModel(User.name)
+    private readonly userModel: Model<UserDocument>,
     private readonly notificationsService: NotificationsService,
   ) {}
+
+  private async isActiveProvider(userId: string): Promise<boolean> {
+    const user = await this.userModel
+      .findById(userId)
+      .select('role hasActiveSubscription')
+      .lean()
+      .exec();
+    return Boolean(
+      user?.hasActiveSubscription &&
+        (user.role === 'vet' || user.role === 'sitter'),
+    );
+  }
+
+  private async assertActiveProvider(userId: string): Promise<void> {
+    if (!(await this.isActiveProvider(userId))) {
+      throw new ForbiddenException(
+        'An active veterinarian or pet sitter subscription is required',
+      );
+    }
+  }
 
   async create(
     userId: string,
@@ -38,6 +61,21 @@ export class BookingsService {
     if (!selectedPet) {
       throw new ForbiddenException(
         'The selected pet does not belong to this account',
+      );
+    }
+
+    const provider = await this.userModel
+      .findOne({
+        _id: new Types.ObjectId(createBookingDto.providerId),
+        role: createBookingDto.providerType,
+        hasActiveSubscription: true,
+      })
+      .select('_id')
+      .lean()
+      .exec();
+    if (!provider) {
+      throw new ForbiddenException(
+        'The selected care provider is no longer available',
       );
     }
 
@@ -90,13 +128,16 @@ export class BookingsService {
     if (role === 'owner') {
       query.owner = new Types.ObjectId(userId);
     } else if (role === 'provider') {
+      await this.assertActiveProvider(userId);
       query.provider = new Types.ObjectId(userId);
     } else {
-      // Return all bookings where user is either owner or provider
-      query.$or = [
-        { owner: new Types.ObjectId(userId) },
-        { provider: new Types.ObjectId(userId) },
-      ];
+      const activeProvider = await this.isActiveProvider(userId);
+      query.$or = activeProvider
+        ? [
+            { owner: new Types.ObjectId(userId) },
+            { provider: new Types.ObjectId(userId) },
+          ]
+        : [{ owner: new Types.ObjectId(userId) }];
     }
 
     const bookings = await this.bookingModel
@@ -123,6 +164,9 @@ export class BookingsService {
     const providerId = String(booking.provider);
     if (ownerId !== userId && providerId !== userId) {
       throw new ForbiddenException('You do not have access to this booking');
+    }
+    if (providerId === userId && ownerId !== userId) {
+      await this.assertActiveProvider(userId);
     }
 
     const canSeeFullPet =
@@ -164,6 +208,7 @@ export class BookingsService {
         'Only the service provider can update booking status',
       );
     }
+    await this.assertActiveProvider(userId);
 
     // Only pending requests can be accepted or rejected. Accepted
     // appointments can later be marked completed by the provider.
@@ -273,6 +318,9 @@ export class BookingsService {
       throw new ForbiddenException(
         'You do not have permission to delete this booking',
       );
+    }
+    if (providerId === userId && ownerId !== userId) {
+      await this.assertActiveProvider(userId);
     }
 
     await this.bookingModel.findByIdAndDelete(id).exec();
