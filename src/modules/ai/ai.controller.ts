@@ -9,6 +9,8 @@ import {
   HttpStatus,
   HttpException,
 } from '@nestjs/common';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { User } from '../users/schemas/user.schema';
 import {
   ApiTags,
   ApiOperation,
@@ -43,8 +45,13 @@ export class AiController {
   async getHealthReport(
     @Param('petId') petId: string,
     @Query('refresh') refresh?: string,
+    @CurrentUser() user?: User,
   ): Promise<AiHealthReportResponseDto> {
-    return this.aiService.generateHealthReport(petId, refresh === 'true');
+    return this.aiService.generateHealthReport(
+      petId,
+      refresh === 'true',
+      String(user?._id ?? user?.id),
+    );
   }
 
   @Get('pets/:petId/tips')

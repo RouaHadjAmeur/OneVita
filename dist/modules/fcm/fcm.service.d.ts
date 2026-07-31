@@ -11,6 +11,6 @@ export declare class FcmService implements OnModuleInit {
     sendNotification(fcmToken: string, title: string, body: string, data?: Record<string, any>): Promise<void>;
     sendMessageNotification(fcmToken: string, senderName: string, messageContent: string, conversationId: string, messageId: string): Promise<void>;
     mintCustomToken(uid: string): Promise<string>;
-    getFirestore(): admin.firestore.Firestore;
+    getFirestore(): admin.firestore.Firestore | null;
     sendMulticastNotification(fcmTokens: string[], title: string, body: string, data?: Record<string, any>): Promise<admin.messaging.BatchResponse | null>;
 }

@@ -60,8 +60,12 @@ let ChatNotificationsService = ChatNotificationsService_1 = class ChatNotificati
         this.startedAt = admin.firestore.Timestamp.now();
     }
     onModuleInit() {
-        this.fcmService
-            .getFirestore()
+        const firestore = this.fcmService.getFirestore();
+        if (!firestore) {
+            this.logger.warn('Chat push listener disabled because Firebase is not configured');
+            return;
+        }
+        firestore
             .collectionGroup('messages')
             .where('createdAt', '>', this.startedAt)
             .onSnapshot((snapshot) => {
@@ -90,8 +94,7 @@ let ChatNotificationsService = ChatNotificationsService_1 = class ChatNotificati
         if (!recipient?.fcmToken)
             return;
         const senderName = data.senderName ||
-            (await this.userModel.findById(senderId).select('name').exec())
-                ?.name ||
+            (await this.userModel.findById(senderId).select('name').exec())?.name ||
             'Someone';
         try {
             await this.fcmService.sendMessageNotification(recipient.fcmToken, senderName, content, conversationId, doc.id);

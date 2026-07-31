@@ -38,6 +38,16 @@ export class HumanHealthController {
     return this.humanHealthService.getProfile(this.userId(user));
   }
 
+  @Get('one-health-assessment')
+  @ApiOperation({
+    summary: 'Generate a bidirectional human and pet One Health assessment',
+  })
+  getOneHealthAssessment(@CurrentUser() user: User) {
+    return this.humanHealthService.generateOneHealthAssessment(
+      this.userId(user),
+    );
+  }
+
   @Put()
   @ApiOperation({ summary: 'Replace the authenticated user health profile' })
   replaceProfile(
@@ -58,6 +68,15 @@ export class HumanHealthController {
     return this.humanHealthService.removeItem(this.userId(user), 'metrics', id);
   }
 
+  @Put('metrics/:id')
+  updateMetric(
+    @CurrentUser() user: User,
+    @Param('id') id: string,
+    @Body() dto: CreateHealthMetricDto,
+  ) {
+    return this.humanHealthService.updateMetric(this.userId(user), id, dto);
+  }
+
   @Post('medications')
   @ApiOperation({ summary: 'Add a medication' })
   addMedication(
@@ -65,6 +84,19 @@ export class HumanHealthController {
     @Body() dto: CreateHumanMedicationDto,
   ) {
     return this.humanHealthService.addMedication(this.userId(user), dto);
+  }
+
+  @Put('medications/:id')
+  updateMedication(
+    @CurrentUser() user: User,
+    @Param('id') id: string,
+    @Body() dto: CreateHumanMedicationDto,
+  ) {
+    return this.humanHealthService.updateMedication(
+      this.userId(user),
+      id,
+      dto,
+    );
   }
 
   @Patch('medications/:id/taken')
@@ -91,6 +123,16 @@ export class HumanHealthController {
     return this.humanHealthService.addRecord(this.userId(user), dto);
   }
 
+  @Put('records/:id')
+  @ApiOperation({ summary: 'Update a medical record' })
+  updateRecord(
+    @CurrentUser() user: User,
+    @Param('id') id: string,
+    @Body() dto: CreateHumanMedicalRecordDto,
+  ) {
+    return this.humanHealthService.updateRecord(this.userId(user), id, dto);
+  }
+
   @Delete('records/:id')
   removeRecord(@CurrentUser() user: User, @Param('id') id: string) {
     return this.humanHealthService.removeItem(this.userId(user), 'records', id);
@@ -103,6 +145,19 @@ export class HumanHealthController {
     @Body() dto: CreateHumanAppointmentDto,
   ) {
     return this.humanHealthService.addAppointment(this.userId(user), dto);
+  }
+
+  @Put('appointments/:id')
+  updateAppointment(
+    @CurrentUser() user: User,
+    @Param('id') id: string,
+    @Body() dto: CreateHumanAppointmentDto,
+  ) {
+    return this.humanHealthService.updateAppointment(
+      this.userId(user),
+      id,
+      dto,
+    );
   }
 
   @Delete('appointments/:id')

@@ -171,8 +171,7 @@ export class BookingsService {
 
     const canSeeFullPet =
       ownerId === userId ||
-      (providerId === userId &&
-        ['accepted', 'completed'].includes(booking.status));
+      (providerId === userId && booking.providerType === 'vet');
 
     await booking.populate([
       { path: 'owner', select: 'name email profileImage' },

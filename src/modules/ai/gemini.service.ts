@@ -100,39 +100,10 @@ export class GeminiService {
       (timestamp) => now - timestamp < this.requestWindowMs,
     );
 
-    // If we've made max requests, wait until the oldest request is outside the window
+    // Never hold an API request open while waiting for free-tier quota. Callers
+    // can immediately use their local fallback instead.
     if (this.requestTimestamps.length >= this.maxRequestsPerMinute) {
-      const oldestRequest = this.requestTimestamps[0];
-      const waitTime = this.requestWindowMs - (now - oldestRequest) + 2000; // Add 2 second buffer
-
-      if (waitTime > 0) {
-        this.logger.log(
-          `Rate limit: Waiting ${Math.ceil(waitTime / 1000)}s before API call (${this.requestTimestamps.length}/${this.maxRequestsPerMinute} requests in last minute)`,
-        );
-        await new Promise((resolve) => setTimeout(resolve, waitTime));
-
-        // Clean up again after waiting
-        const afterWait = Date.now();
-        this.requestTimestamps = this.requestTimestamps.filter(
-          (timestamp) => afterWait - timestamp < this.requestWindowMs,
-        );
-      }
-    }
-
-    // Ensure minimum 30 seconds between requests (for 2 requests per minute)
-    if (this.requestTimestamps.length > 0) {
-      const lastRequest =
-        this.requestTimestamps[this.requestTimestamps.length - 1];
-      const timeSinceLastRequest = now - lastRequest;
-      const minInterval = 30000; // 30 seconds minimum between requests
-
-      if (timeSinceLastRequest < minInterval) {
-        const waitTime = minInterval - timeSinceLastRequest;
-        this.logger.log(
-          `Enforcing minimum interval: Waiting ${Math.ceil(waitTime / 1000)}s (${timeSinceLastRequest}ms since last request)`,
-        );
-        await new Promise((resolve) => setTimeout(resolve, waitTime));
-      }
+      throw new Error('AI_RATE_LIMITED: use local fallback');
     }
 
     // Record this request
@@ -187,19 +158,12 @@ export class GeminiService {
         const models = response.data.models as Array<{ name: string }>;
         // Prioritize Flash models (more generous free tier quotas)
         const preferredNames = [
-          'gemini-2.5-flash', // Newest flash model with best quotas
-          'gemini-1.5-flash', // Fast and generous free tier
-          'gemini-2.0-flash', // Alternative flash model
-          'gemini-1.5-pro', // Fallback to pro if flash not available
-          'gemini-pro',
-          'gemini-1.0-pro',
+          'gemini-3.1-flash-lite',
         ];
 
         for (const preferredName of preferredNames) {
           const model = models.find(
-            (m) =>
-              m.name.includes(preferredName) ||
-              m.name.includes(preferredName.replace(/-/g, '_')),
+            (m) => (m.name.split('/').pop() || m.name) === preferredName,
           );
           if (model) {
             const modelName = model.name.split('/').pop() || model.name;
@@ -209,22 +173,16 @@ export class GeminiService {
           }
         }
 
-        // Fallback to first available model
-        if (models.length > 0) {
-          const modelName = models[0].name.split('/').pop() || models[0].name;
-          this.cachedModelName = modelName;
-          this.logger.log(`Using first available model: ${modelName}`);
-          return modelName;
-        }
       }
     } catch (error) {
-      this.logger.warn('Failed to list models, using fallback', error);
+      this.logger.warn(
+        `Failed to list Gemini models; using the configured fallback (${error instanceof Error ? error.message : 'unknown error'})`,
+      );
     }
 
-    // Fallback to flash model (better free tier quotas)
-    this.cachedModelName = 'gemini-1.5-flash';
-    this.logger.log('Using fallback model: gemini-1.5-flash');
-    return 'gemini-1.5-flash';
+    this.cachedModelName = 'gemini-3.1-flash-lite';
+    this.logger.log('Using fallback model: gemini-3.1-flash-lite');
+    return 'gemini-3.1-flash-lite';
   }
 
   /**
@@ -410,6 +368,11 @@ export class GeminiService {
         if (axios.isAxiosError(error)) {
           const status = error.response?.status;
           const errorData = error.response?.data;
+          const safeMessage =
+            errorData?.error?.message ?? error.message ?? 'Request failed';
+          lastError = new Error(
+            `Gemini API request failed${status ? ` (${status})` : ''}: ${safeMessage}`,
+          );
 
           if (status === 429) {
             // Check if it's daily quota exhaustion vs rate limiting
@@ -545,7 +508,9 @@ export class GeminiService {
 
       // Start processing queue if not already processing
       this.processQueue().catch((error) => {
-        this.logger.error('Error processing request queue:', error);
+        this.logger.error(
+          `Error processing Gemini request queue: ${error instanceof Error ? error.message : 'unknown error'}`,
+        );
       });
     });
   }

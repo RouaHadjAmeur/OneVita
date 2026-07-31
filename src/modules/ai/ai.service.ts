@@ -727,13 +727,16 @@ Return ONLY the status word/phrase, nothing else.`;
   async generateHealthReport(
     petId: string,
     forceRefresh = false,
+    ownerId?: string,
   ): Promise<AiHealthReportResponseDto> {
+    const { pet, medicalHistory } = await this.getPetWithHistory(petId);
+    if (ownerId && String(pet.owner) !== ownerId) {
+      throw new NotFoundException('Pet not found');
+    }
     if (!forceRefresh) {
       const cached = this.getCached(this.reportCache, petId);
       if (cached) return cached;
     }
-
-    const { pet, medicalHistory } = await this.getPetWithHistory(petId);
     const vaccinations = medicalHistory?.vaccinations ?? [];
     const conditions = medicalHistory?.chronicConditions ?? [];
     const medications = medicalHistory?.currentMedications ?? [];
@@ -769,58 +772,80 @@ Rules:
 - If there are no chronic conditions recorded, chronicConditionNotes must be [].
 - Keep advice concise and recommend a veterinarian when clinical assessment is needed.`;
 
-    const response = await this.geminiService.generateText(prompt, {
-      temperature: 0.85,
-      maxTokens: 2500,
-    });
-    const jsonText = response
+    try {
+      const response = await this.geminiService.generateText(prompt, {
+        temperature: 0.85,
+        maxTokens: 2500,
+        maxRetries: 1,
+      });
+      const jsonText = response
       .trim()
       .replace(/^```(?:json)?\s*/i, '')
       .replace(/\s*```$/, '');
 
-    let parsed: Partial<AiHealthReportResponseDto>;
-    try {
+      let parsed: Partial<AiHealthReportResponseDto>;
       parsed = JSON.parse(jsonText) as Partial<AiHealthReportResponseDto>;
-    } catch {
-      this.logger.error(`Invalid health report JSON for pet ${petId}`);
-      throw new Error(
-        'AI returned an invalid health report. Please try again.',
+
+      if (
+        typeof parsed.status !== 'string' ||
+        typeof parsed.dailyTip !== 'string' ||
+        typeof parsed.summary !== 'string' ||
+        !Array.isArray(parsed.missingVaccinations) ||
+        !Array.isArray(parsed.chronicConditionNotes) ||
+        !Array.isArray(parsed.recommendedActions)
+      ) {
+        throw new Error('AI returned an incomplete health report.');
+      }
+
+      const result: AiHealthReportResponseDto = {
+        status: parsed.status,
+        dailyTip: parsed.dailyTip,
+        summary: parsed.summary,
+        missingVaccinations: parsed.missingVaccinations.filter(
+          (item): item is string => typeof item === 'string',
+        ),
+        chronicConditionNotes: parsed.chronicConditionNotes.filter(
+          (item): item is string => typeof item === 'string',
+        ),
+        recommendedActions: parsed.recommendedActions.filter(
+          (item): item is string => typeof item === 'string',
+        ),
+        generatedAt: new Date().toISOString(),
+        disclaimer:
+          'AI-generated guidance only; consult a licensed veterinarian for diagnosis and treatment.',
+      };
+
+      this.setCached(this.reportCache, petId, result);
+      return result;
+    } catch (error) {
+      this.logger.warn(
+        `Using local health-report screening for pet ${petId}: ${error instanceof Error ? error.message : error}`,
       );
+      const result: AiHealthReportResponseDto = {
+        status: conditions.length > 0 ? 'Needs Attention' : 'Healthy',
+        dailyTip:
+          'Keep routine care records current and contact a veterinarian if you notice new symptoms or behavior changes.',
+        summary: conditions.length > 0
+          ? `${pet.name} has recorded health conditions that should be monitored with a veterinarian.`
+          : `${pet.name}'s recorded profile has no chronic condition listed. This screening cannot replace a veterinary examination.`,
+        missingVaccinations: [],
+        chronicConditionNotes: conditions.map(
+          (condition) =>
+            `Continue veterinarian-directed monitoring for ${condition}.`,
+        ),
+        recommendedActions: [
+          vaccinations.length > 0
+            ? 'Confirm recorded vaccinations remain current with the veterinarian.'
+            : 'Ask the veterinarian to verify vaccination history; no vaccination record is not proof that vaccines are missing.',
+          'Arrange veterinary assessment for new, worsening, or urgent symptoms.',
+        ],
+        generatedAt: new Date().toISOString(),
+        disclaimer:
+          'Conservative local screening was used because free AI was unavailable. Consult a licensed veterinarian for diagnosis and treatment.',
+      };
+      this.setCached(this.reportCache, petId, result);
+      return result;
     }
-
-    if (
-      typeof parsed.status !== 'string' ||
-      typeof parsed.dailyTip !== 'string' ||
-      typeof parsed.summary !== 'string' ||
-      !Array.isArray(parsed.missingVaccinations) ||
-      !Array.isArray(parsed.chronicConditionNotes) ||
-      !Array.isArray(parsed.recommendedActions)
-    ) {
-      throw new Error(
-        'AI returned an incomplete health report. Please try again.',
-      );
-    }
-
-    const result: AiHealthReportResponseDto = {
-      status: parsed.status,
-      dailyTip: parsed.dailyTip,
-      summary: parsed.summary,
-      missingVaccinations: parsed.missingVaccinations.filter(
-        (item): item is string => typeof item === 'string',
-      ),
-      chronicConditionNotes: parsed.chronicConditionNotes.filter(
-        (item): item is string => typeof item === 'string',
-      ),
-      recommendedActions: parsed.recommendedActions.filter(
-        (item): item is string => typeof item === 'string',
-      ),
-      generatedAt: new Date().toISOString(),
-      disclaimer:
-        'AI-generated guidance only; consult a licensed veterinarian for diagnosis and treatment.',
-    };
-
-    this.setCached(this.reportCache, petId, result);
-    return result;
   }
 
   /**

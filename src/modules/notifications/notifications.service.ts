@@ -38,6 +38,32 @@ export class NotificationsService {
     return notification.save();
   }
 
+  async createOneHealthAlertIfNew(
+    userId: string,
+    alertKey: string,
+    title: string,
+    message: string,
+    metadata: Record<string, any>,
+  ): Promise<void> {
+    const recipient = new Types.ObjectId(userId);
+    const existing = await this.notificationModel
+      .exists({
+        recipient,
+        type: 'one_health_alert',
+        'metadata.alertKey': alertKey,
+      })
+      .exec();
+    if (existing) return;
+    await this.create({
+      recipientId: userId,
+      senderId: userId,
+      type: 'one_health_alert',
+      title,
+      message,
+      metadata: { ...metadata, alertKey },
+    });
+  }
+
   async findAll(
     userId: string,
     unreadOnly: boolean = false,
