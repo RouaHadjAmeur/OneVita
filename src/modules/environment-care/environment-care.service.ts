@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import axios from 'axios';
 import { Model } from 'mongoose';
@@ -8,6 +8,13 @@ import {
   HumanHealthProfile,
   HumanHealthProfileDocument,
 } from '../human-health/schemas/human-health-profile.schema';
+import { CloudinaryService } from '../cloudinary/cloudinary.service';
+import {
+  EnvironmentReport,
+  EnvironmentReportDocument,
+  FoodSafetyReport,
+  FoodSafetyReportDocument,
+} from './schemas/environment-report.schema';
 
 type Severity = 'low' | 'moderate' | 'high';
 
@@ -18,7 +25,140 @@ export class EnvironmentCareService {
     @InjectModel(Pet.name) private readonly pets: Model<PetDocument>,
     @InjectModel(HumanHealthProfile.name)
     private readonly humanProfiles: Model<HumanHealthProfileDocument>,
+    @InjectModel(EnvironmentReport.name)
+    private readonly environmentReports: Model<EnvironmentReportDocument>,
+    @InjectModel(FoodSafetyReport.name)
+    private readonly foodReports: Model<FoodSafetyReportDocument>,
+    private readonly cloudinary: CloudinaryService,
   ) {}
+
+  async createReport(userId: string, body: any, media?: Express.Multer.File) {
+    if (!media) throw new BadRequestException('A photo or video is required');
+    const latitude = Number(body.latitude);
+    const longitude = Number(body.longitude);
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+      throw new BadRequestException('Valid GPS coordinates are required');
+    }
+    const categories = ['illegal_waste', 'water_pollution', 'air_pollution', 'dead_animal', 'chemical_spill', 'burning_waste', 'oil_leakage', 'construction_waste', 'noise_pollution', 'other'];
+    if (!categories.includes(body.category)) throw new BadRequestException('Invalid report category');
+    const description = String(body.description || '').trim();
+    if (description.length < 10) throw new BadRequestException('Please provide a useful description');
+    const isVideo = media.mimetype.startsWith('video/');
+    const upload = isVideo
+      ? await this.cloudinary.uploadAudio(media, 'environment-reports')
+      : await this.cloudinary.uploadImage(media, 'environment-reports');
+    const report = await this.environmentReports.create({
+      reporter: userId,
+      category: body.category,
+      description,
+      mediaUrl: upload.secure_url,
+      mediaType: isVideo ? 'video' : 'image',
+      latitude,
+      longitude,
+      severity: this.reportSeverity(body.category, description),
+    });
+    return this.publicReport(report.toObject());
+  }
+
+  async getReports(reporter?: string) {
+    const reports = await this.environmentReports
+      .find(reporter ? { reporter } : {})
+      .sort({ createdAt: -1 })
+      .limit(250)
+      .lean()
+      .exec();
+    return reports.map((report) => this.publicReport(report));
+  }
+
+  async updateReportStatus(role: string, id: string, body: any) {
+    if (role !== 'admin') throw new ForbiddenException('Authority access required');
+    if (!['under_review', 'confirmed', 'resolved', 'rejected'].includes(body.status)) {
+      throw new BadRequestException('Invalid status');
+    }
+    const report = await this.environmentReports.findByIdAndUpdate(
+      id,
+      { status: body.status, authorityNote: String(body.authorityNote || '').slice(0, 1000) },
+      { new: true },
+    ).lean().exec();
+    if (!report) throw new NotFoundException('Report not found');
+    return this.publicReport(report);
+  }
+
+  async lookupProduct(rawBarcode: string) {
+    const barcode = rawBarcode.replace(/\D/g, '');
+    if (barcode.length < 8 || barcode.length > 14) throw new BadRequestException('Invalid barcode');
+    const { data } = await axios.get(`https://world.openfoodfacts.org/api/v2/product/${barcode}`, {
+      timeout: 10000,
+      headers: { 'User-Agent': 'OneVita/1.0 (environment-care)' },
+    });
+    if (data?.status !== 1 || !data.product) throw new NotFoundException('Product not found');
+    const p = data.product;
+    return {
+      barcode,
+      name: p.product_name || p.product_name_en || 'Unnamed product',
+      brands: p.brands || '',
+      imageUrl: p.image_front_url || p.image_url || '',
+      ingredients: p.ingredients_text || '',
+      allergens: p.allergens_tags || [],
+      nutritionGrade: p.nutrition_grades || null,
+      novaGroup: p.nova_group || null,
+      additives: p.additives_tags || [],
+      origins: p.origins || '',
+      countries: p.countries || '',
+      labels: p.labels_tags || [],
+      vegan: this.labelValue(p.ingredients_analysis_tags, 'vegan'),
+      dataSource: 'Open Food Facts',
+      disclaimer: 'Community-contributed data may be incomplete. Check the package label and official recalls.',
+    };
+  }
+
+  async createFoodReport(userId: string, body: any, photo?: Express.Multer.File) {
+    const issueTypes = ['strange_smell', 'expired', 'wrong_packaging', 'mold', 'foreign_object', 'fake_product', 'food_poisoning', 'other'];
+    if (!issueTypes.includes(body.issueType)) throw new BadRequestException('Invalid food issue type');
+    let photoUrl: string | undefined;
+    if (photo) photoUrl = (await this.cloudinary.uploadImage(photo, 'food-safety-reports')).secure_url;
+    const report = await this.foodReports.create({
+      reporter: userId,
+      barcode: String(body.barcode || '').replace(/\D/g, ''),
+      productName: String(body.productName || ''),
+      issueType: body.issueType,
+      batchNumber: String(body.batchNumber || ''),
+      purchaseLocation: String(body.purchaseLocation || ''),
+      symptoms: String(body.symptoms || ''),
+      photoUrl,
+    });
+    return report.toJSON();
+  }
+
+  private publicReport(report: any) {
+    return {
+      id: String(report._id),
+      category: report.category,
+      description: report.description,
+      mediaUrl: report.mediaUrl,
+      mediaType: report.mediaType,
+      latitude: Math.round(Number(report.latitude) * 1000) / 1000,
+      longitude: Math.round(Number(report.longitude) * 1000) / 1000,
+      status: report.status,
+      severity: report.severity,
+      authorityNote: report.authorityNote || null,
+      createdAt: report.createdAt,
+    };
+  }
+
+  private reportSeverity(category: string, description: string) {
+    if (['chemical_spill', 'oil_leakage', 'water_pollution'].includes(category)) return 'high';
+    if (/hospital|school|fire|explosion|poison|injur/i.test(description)) return 'critical';
+    if (['burning_waste', 'dead_animal'].includes(category)) return 'high';
+    return 'moderate';
+  }
+
+  private labelValue(values: unknown, label: string) {
+    if (!Array.isArray(values)) return 'unknown';
+    if (values.includes(`en:${label}`)) return 'yes';
+    if (values.includes(`en:non-${label}`)) return 'no';
+    return 'unknown';
+  }
 
   async getDashboard(userId: string) {
     const [user, pets, human] = await Promise.all([

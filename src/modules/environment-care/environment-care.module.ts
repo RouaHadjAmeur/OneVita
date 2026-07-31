@@ -8,6 +8,13 @@ import {
 } from '../human-health/schemas/human-health-profile.schema';
 import { EnvironmentCareController } from './environment-care.controller';
 import { EnvironmentCareService } from './environment-care.service';
+import { CloudinaryModule } from '../cloudinary/cloudinary.module';
+import {
+  EnvironmentReport,
+  EnvironmentReportSchema,
+  FoodSafetyReport,
+  FoodSafetyReportSchema,
+} from './schemas/environment-report.schema';
 
 @Module({
   imports: [
@@ -15,7 +22,10 @@ import { EnvironmentCareService } from './environment-care.service';
       { name: User.name, schema: UserSchema },
       { name: Pet.name, schema: PetSchema },
       { name: HumanHealthProfile.name, schema: HumanHealthProfileSchema },
+      { name: EnvironmentReport.name, schema: EnvironmentReportSchema },
+      { name: FoodSafetyReport.name, schema: FoodSafetyReportSchema },
     ]),
+    CloudinaryModule,
   ],
   controllers: [EnvironmentCareController],
   providers: [EnvironmentCareService],

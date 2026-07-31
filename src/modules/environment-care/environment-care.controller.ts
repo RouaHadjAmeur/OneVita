@@ -1,4 +1,5 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query, Request, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -16,5 +17,32 @@ export class EnvironmentCareController {
   @ApiOperation({ summary: 'Get live personalized environment conditions' })
   dashboard(@CurrentUser() user: User) {
     return this.service.getDashboard(String(user._id));
+  }
+
+  @Post('reports')
+  @UseInterceptors(FileInterceptor('media'))
+  createReport(@CurrentUser() user: User, @Body() body: any, @UploadedFile() media: Express.Multer.File) {
+    return this.service.createReport(String(user._id), body, media);
+  }
+
+  @Get('reports')
+  reports(@Query('mine') mine: string, @CurrentUser() user: User) {
+    return this.service.getReports(mine === 'true' ? String(user._id) : undefined);
+  }
+
+  @Patch('reports/:id/status')
+  updateReportStatus(@Request() request: any, @Param('id') id: string, @Body() body: any) {
+    return this.service.updateReportStatus(request.user.role, id, body);
+  }
+
+  @Get('products/:barcode')
+  product(@Param('barcode') barcode: string) {
+    return this.service.lookupProduct(barcode);
+  }
+
+  @Post('food-reports')
+  @UseInterceptors(FileInterceptor('photo'))
+  createFoodReport(@CurrentUser() user: User, @Body() body: any, @UploadedFile() photo?: Express.Multer.File) {
+    return this.service.createFoodReport(String(user._id), body, photo);
   }
 }
