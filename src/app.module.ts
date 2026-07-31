@@ -18,6 +18,7 @@ import { FcmModule } from './modules/fcm/fcm.module';
 import { ChatbotModule } from './modules/chatbot/chatbot.module';
 import { CommunityModule } from './modules/community/community.module';
 import { HumanHealthModule } from './modules/human-health/human-health.module';
+import { EnvironmentCareModule } from './modules/environment-care/environment-care.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { HumanHealthModule } from './modules/human-health/human-health.module';
     ChatbotModule,
     CommunityModule,
     HumanHealthModule,
+    EnvironmentCareModule,
   ],
   controllers: [AppController],
   providers: [AppService],
