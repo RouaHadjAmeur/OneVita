@@ -45,4 +45,9 @@ export class EnvironmentCareController {
   createFoodReport(@CurrentUser() user: User, @Body() body: any, @UploadedFile() photo?: Express.Multer.File) {
     return this.service.createFoodReport(String(user._id), body, photo);
   }
+
+  @Get('food-reports')
+  foodReports(@Query('barcode') barcode: string) {
+    return this.service.getFoodReports(barcode);
+  }
 }

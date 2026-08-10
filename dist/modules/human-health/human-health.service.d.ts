@@ -1,11 +1,42 @@
 import { Model, Types } from 'mongoose';
 import { CreateHealthMetricDto, CreateHumanAppointmentDto, CreateHumanMedicalRecordDto, CreateHumanMedicationDto, ReplaceHumanHealthProfileDto, UpdateEmergencyHealthProfileDto } from './dto/human-health.dto';
 import { HumanHealthProfile, HumanHealthProfileDocument } from './schemas/human-health-profile.schema';
+import { PetDocument } from '../pets/schemas/pet.schema';
+import { GeminiService } from '../ai/gemini.service';
+import { NotificationsService } from '../notifications/notifications.service';
 export declare class HumanHealthService {
     private readonly profileModel;
-    constructor(profileModel: Model<HumanHealthProfileDocument>);
+    private readonly petModel;
+    private readonly geminiService;
+    private readonly notificationsService;
+    constructor(profileModel: Model<HumanHealthProfileDocument>, petModel: Model<PetDocument>, geminiService: GeminiService, notificationsService: NotificationsService);
     getProfile(userId: string): Promise<HumanHealthProfileDocument>;
+    generateOneHealthAssessment(userId: string): Promise<{
+        overallRisk: any;
+        summary: any;
+        alerts: any;
+        environmentalRecommendations: string[];
+        limitations: string[];
+    } | {
+        analysisMode: string;
+        overallRisk: string;
+        summary: string;
+        alerts: any[];
+        environmentalRecommendations: any[];
+        limitations: string[];
+        generatedAt: string;
+        disclaimer: string;
+    }>;
+    private validateOneHealthAssessment;
+    private localOneHealthFallback;
+    private strings;
+    private publishOneHealthAlerts;
     addMetric(userId: string, dto: CreateHealthMetricDto): Promise<import("mongoose").Document<unknown, {}, HumanHealthProfile, {}, {}> & HumanHealthProfile & {
+        _id: Types.ObjectId;
+    } & {
+        __v: number;
+    }>;
+    updateMetric(userId: string, id: string, dto: CreateHealthMetricDto): Promise<import("mongoose").Document<unknown, {}, HumanHealthProfile, {}, {}> & HumanHealthProfile & {
         _id: Types.ObjectId;
     } & {
         __v: number;
@@ -15,12 +46,23 @@ export declare class HumanHealthService {
     } & {
         __v: number;
     }>;
+    updateMedication(userId: string, id: string, dto: CreateHumanMedicationDto): Promise<import("mongoose").Document<unknown, {}, HumanHealthProfile, {}, {}> & HumanHealthProfile & {
+        _id: Types.ObjectId;
+    } & {
+        __v: number;
+    }>;
     addRecord(userId: string, dto: CreateHumanMedicalRecordDto): Promise<import("mongoose").Document<unknown, {}, HumanHealthProfile, {}, {}> & HumanHealthProfile & {
         _id: Types.ObjectId;
     } & {
         __v: number;
     }>;
+    updateRecord(userId: string, recordId: string, dto: CreateHumanMedicalRecordDto): Promise<HumanHealthProfileDocument>;
     addAppointment(userId: string, dto: CreateHumanAppointmentDto): Promise<import("mongoose").Document<unknown, {}, HumanHealthProfile, {}, {}> & HumanHealthProfile & {
+        _id: Types.ObjectId;
+    } & {
+        __v: number;
+    }>;
+    updateAppointment(userId: string, id: string, dto: CreateHumanAppointmentDto): Promise<import("mongoose").Document<unknown, {}, HumanHealthProfile, {}, {}> & HumanHealthProfile & {
         _id: Types.ObjectId;
     } & {
         __v: number;
@@ -50,5 +92,6 @@ export declare class HumanHealthService {
     recordMedicationTaken(userId: string, medicationId: string): Promise<HumanHealthProfileDocument>;
     removeItem(userId: string, collection: 'metrics' | 'medications' | 'records' | 'appointments', itemId: string): Promise<HumanHealthProfileDocument>;
     private push;
+    private updateItem;
     private objectId;
 }

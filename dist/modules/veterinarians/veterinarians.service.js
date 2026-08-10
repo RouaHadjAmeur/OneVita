@@ -112,12 +112,15 @@ let VeterinariansService = class VeterinariansService {
             : {};
         const veterinarians = await this.veterinarianModel
             .find(filter)
-            .populate('user')
+            .populate({
+            path: 'user',
+            match: { role: 'vet', hasActiveSubscription: true },
+        })
             .exec();
-        return veterinarians.map((vet) => {
+        return veterinarians.flatMap((vet) => {
             const user = vet.user;
             if (!user || !('_id' in user)) {
-                throw new common_1.NotFoundException('User not populated correctly');
+                return [];
             }
             if (vet.latitude !== undefined) {
                 user.latitude = vet.latitude;
@@ -125,20 +128,23 @@ let VeterinariansService = class VeterinariansService {
             if (vet.longitude !== undefined) {
                 user.longitude = vet.longitude;
             }
-            return user;
+            return [user];
         });
     }
     async findOne(id) {
         const vet = await this.veterinarianModel
             .findOne({ user: id })
-            .populate('user')
+            .populate({
+            path: 'user',
+            match: { role: 'vet', hasActiveSubscription: true },
+        })
             .exec();
         if (!vet) {
             throw new common_1.NotFoundException(`Veterinarian with ID ${id} not found`);
         }
         const user = vet.user;
         if (!user || !('_id' in user)) {
-            throw new common_1.NotFoundException('User not populated correctly');
+            throw new common_1.NotFoundException(`Veterinarian with ID ${id} not found`);
         }
         user.vetLicenseNumber = vet.licenseNumber;
         user.vetClinicName = vet.clinicName;

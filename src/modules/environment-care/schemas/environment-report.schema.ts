@@ -8,7 +8,7 @@ export class EnvironmentReport {
   @Prop({ type: Types.ObjectId, ref: 'User', required: true, index: true })
   reporter: Types.ObjectId;
 
-  @Prop({ required: true, enum: ['illegal_waste', 'water_pollution', 'air_pollution', 'dead_animal', 'chemical_spill', 'burning_waste', 'oil_leakage', 'construction_waste', 'noise_pollution', 'other'] })
+  @Prop({ required: true, enum: ['illegal_waste', 'water_pollution', 'unsafe_drinking_water', 'unsafe_food', 'air_pollution', 'dead_animal', 'chemical_spill', 'burning_waste', 'oil_leakage', 'construction_waste', 'noise_pollution', 'other'] })
   category: string;
 
   @Prop({ required: true, maxlength: 2000 })
@@ -48,6 +48,8 @@ export class FoodSafetyReport {
   @Prop({ required: true, enum: ['strange_smell', 'expired', 'wrong_packaging', 'mold', 'foreign_object', 'fake_product', 'food_poisoning', 'other'] }) issueType: string;
   @Prop() batchNumber?: string;
   @Prop() purchaseLocation?: string;
+  @Prop() purchaseState?: string;
+  @Prop({ maxlength: 2000 }) description?: string;
   @Prop() symptoms?: string;
   @Prop() photoUrl?: string;
   @Prop({ enum: ['submitted', 'under_review', 'confirmed', 'resolved', 'rejected'], default: 'submitted' }) status: string;
@@ -55,3 +57,4 @@ export class FoodSafetyReport {
 
 export type FoodSafetyReportDocument = FoodSafetyReport & Document;
 export const FoodSafetyReportSchema = SchemaFactory.createForClass(FoodSafetyReport);
+FoodSafetyReportSchema.index({ barcode: 1, status: 1, createdAt: -1 });

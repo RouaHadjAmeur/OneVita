@@ -3,12 +3,16 @@ import { CreateBookingDto } from './dto/create-booking.dto';
 import { UpdateBookingDto } from './dto/update-booking.dto';
 import { BookingDocument } from './schemas/booking.schema';
 import { PetDocument } from '../pets/schemas/pet.schema';
+import { UserDocument } from '../users/schemas/user.schema';
 import { NotificationsService } from '../notifications/notifications.service';
 export declare class BookingsService {
     private readonly bookingModel;
     private readonly petModel;
+    private readonly userModel;
     private readonly notificationsService;
-    constructor(bookingModel: Model<BookingDocument>, petModel: Model<PetDocument>, notificationsService: NotificationsService);
+    constructor(bookingModel: Model<BookingDocument>, petModel: Model<PetDocument>, userModel: Model<UserDocument>, notificationsService: NotificationsService);
+    private isActiveProvider;
+    private assertActiveProvider;
     create(userId: string, createBookingDto: CreateBookingDto): Promise<BookingDocument>;
     findAll(userId: string, role?: 'owner' | 'provider'): Promise<BookingDocument[]>;
     findOne(id: string, userId: string): Promise<BookingDocument>;

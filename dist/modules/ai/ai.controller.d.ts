@@ -1,3 +1,4 @@
+import { User } from '../users/schemas/user.schema';
 import { AiService } from './ai.service';
 import { AiTipsResponseDto } from './dto/ai-tips-response.dto';
 import { AiRecommendationsResponseDto } from './dto/ai-recommendations-response.dto';
@@ -7,7 +8,7 @@ import { AiHealthReportResponseDto } from './dto/ai-health-report-response.dto';
 export declare class AiController {
     private readonly aiService;
     constructor(aiService: AiService);
-    getHealthReport(petId: string, refresh?: string): Promise<AiHealthReportResponseDto>;
+    getHealthReport(petId: string, refresh?: string, user?: User): Promise<AiHealthReportResponseDto>;
     getTips(petId: string): Promise<AiTipsResponseDto>;
     getRecommendations(petId: string): Promise<AiRecommendationsResponseDto>;
     getReminders(petId: string): Promise<AiRemindersResponseDto>;

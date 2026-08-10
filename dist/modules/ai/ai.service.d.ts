@@ -32,7 +32,7 @@ export declare class AiService {
     private getCached;
     private setCached;
     clearCacheForPet(petId: string): void;
-    generateHealthReport(petId: string, forceRefresh?: boolean): Promise<AiHealthReportResponseDto>;
+    generateHealthReport(petId: string, forceRefresh?: boolean, ownerId?: string): Promise<AiHealthReportResponseDto>;
     generateTips(petId: string): Promise<AiTipsResponseDto>;
     private fetchAndCacheTips;
     private refreshCacheInBackground;

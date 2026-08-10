@@ -39,7 +39,7 @@ export class EnvironmentCareService {
     if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
       throw new BadRequestException('Valid GPS coordinates are required');
     }
-    const categories = ['illegal_waste', 'water_pollution', 'air_pollution', 'dead_animal', 'chemical_spill', 'burning_waste', 'oil_leakage', 'construction_waste', 'noise_pollution', 'other'];
+    const categories = ['illegal_waste', 'water_pollution', 'unsafe_drinking_water', 'unsafe_food', 'air_pollution', 'dead_animal', 'chemical_spill', 'burning_waste', 'oil_leakage', 'construction_waste', 'noise_pollution', 'other'];
     if (!categories.includes(body.category)) throw new BadRequestException('Invalid report category');
     const description = String(body.description || '').trim();
     if (description.length < 10) throw new BadRequestException('Please provide a useful description');
@@ -97,13 +97,17 @@ export class EnvironmentCareService {
       barcode,
       name: p.product_name || p.product_name_en || 'Unnamed product',
       brands: p.brands || '',
+      quantity: p.quantity || '',
       imageUrl: p.image_front_url || p.image_url || '',
+      categories: p.categories || '',
       ingredients: p.ingredients_text || '',
       allergens: p.allergens_tags || [],
       nutritionGrade: p.nutrition_grades || null,
       novaGroup: p.nova_group || null,
       additives: p.additives_tags || [],
       origins: p.origins || '',
+      manufacturingPlaces: p.manufacturing_places || '',
+      stores: p.stores || '',
       countries: p.countries || '',
       labels: p.labels_tags || [],
       vegan: this.labelValue(p.ingredients_analysis_tags, 'vegan'),
@@ -115,19 +119,55 @@ export class EnvironmentCareService {
   async createFoodReport(userId: string, body: any, photo?: Express.Multer.File) {
     const issueTypes = ['strange_smell', 'expired', 'wrong_packaging', 'mold', 'foreign_object', 'fake_product', 'food_poisoning', 'other'];
     if (!issueTypes.includes(body.issueType)) throw new BadRequestException('Invalid food issue type');
+    const barcode = String(body.barcode || '').replace(/\D/g, '');
+    if (barcode.length < 8 || barcode.length > 14) throw new BadRequestException('A valid barcode is required');
+    const purchaseState = String(body.purchaseState || body.purchaseLocation || '').trim();
+    if (purchaseState.length < 2) throw new BadRequestException('Purchase state or region is required');
+    const description = String(body.description || '').trim();
+    if (description.length < 10) throw new BadRequestException('Please describe the product issue');
     let photoUrl: string | undefined;
     if (photo) photoUrl = (await this.cloudinary.uploadImage(photo, 'food-safety-reports')).secure_url;
     const report = await this.foodReports.create({
       reporter: userId,
-      barcode: String(body.barcode || '').replace(/\D/g, ''),
+      barcode,
       productName: String(body.productName || ''),
       issueType: body.issueType,
       batchNumber: String(body.batchNumber || ''),
-      purchaseLocation: String(body.purchaseLocation || ''),
+      purchaseState,
+      purchaseLocation: purchaseState,
+      description,
       symptoms: String(body.symptoms || ''),
       photoUrl,
     });
-    return report.toJSON();
+    return this.publicFoodReport(report.toObject());
+  }
+
+  async getFoodReports(rawBarcode?: string) {
+    const barcode = String(rawBarcode || '').replace(/\D/g, '');
+    if (barcode.length < 8 || barcode.length > 14) throw new BadRequestException('A valid barcode is required');
+    const reports = await this.foodReports
+      .find({ barcode, status: { $ne: 'rejected' } })
+      .sort({ createdAt: -1 })
+      .limit(250)
+      .lean()
+      .exec();
+    return reports.map((report) => this.publicFoodReport(report));
+  }
+
+  private publicFoodReport(report: any) {
+    return {
+      id: String(report._id),
+      barcode: report.barcode,
+      productName: report.productName || '',
+      issueType: report.issueType,
+      batchNumber: report.batchNumber || '',
+      purchaseState: report.purchaseState || report.purchaseLocation || '',
+      description: report.description || '',
+      symptoms: report.symptoms || '',
+      photoUrl: report.photoUrl || '',
+      status: report.status,
+      createdAt: report.createdAt,
+    };
   }
 
   private publicReport(report: any) {
@@ -147,7 +187,7 @@ export class EnvironmentCareService {
   }
 
   private reportSeverity(category: string, description: string) {
-    if (['chemical_spill', 'oil_leakage', 'water_pollution'].includes(category)) return 'high';
+    if (['chemical_spill', 'oil_leakage', 'water_pollution', 'unsafe_drinking_water', 'unsafe_food'].includes(category)) return 'high';
     if (/hospital|school|fire|explosion|poison|injur/i.test(description)) return 'critical';
     if (['burning_waste', 'dead_animal'].includes(category)) return 'high';
     return 'moderate';

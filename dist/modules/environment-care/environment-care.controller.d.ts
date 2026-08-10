@@ -1,0 +1,125 @@
+import { User } from '../users/schemas/user.schema';
+import { EnvironmentCareService } from './environment-care.service';
+export declare class EnvironmentCareController {
+    private readonly service;
+    constructor(service: EnvironmentCareService);
+    dashboard(user: User): Promise<{
+        location: {
+            city: string;
+            country: string;
+            latitude: number;
+            longitude: number;
+            isProfileLocation: boolean;
+        };
+        observedAt: string;
+        conditions: {
+            temperature: number;
+            apparentTemperature: number;
+            humidity: number;
+            windSpeed: number;
+            weatherCode: number;
+            uvIndex: number;
+            precipitationProbability: number;
+            aqi: number;
+            airQuality: string;
+            pm25: number;
+            pm10: number;
+            nitrogenDioxide: number;
+            ozone: number;
+            pollen: number;
+            pollenLevel: string;
+        };
+        environmentalScore: number;
+        alerts: Record<string, unknown>[];
+        recommendations: string[];
+        advisories: any[];
+        dataSources: string[];
+        limitations: string[];
+    }>;
+    createReport(user: User, body: any, media: Express.Multer.File): Promise<{
+        id: string;
+        category: any;
+        description: any;
+        mediaUrl: any;
+        mediaType: any;
+        latitude: number;
+        longitude: number;
+        status: any;
+        severity: any;
+        authorityNote: any;
+        createdAt: any;
+    }>;
+    reports(mine: string, user: User): Promise<{
+        id: string;
+        category: any;
+        description: any;
+        mediaUrl: any;
+        mediaType: any;
+        latitude: number;
+        longitude: number;
+        status: any;
+        severity: any;
+        authorityNote: any;
+        createdAt: any;
+    }[]>;
+    updateReportStatus(request: any, id: string, body: any): Promise<{
+        id: string;
+        category: any;
+        description: any;
+        mediaUrl: any;
+        mediaType: any;
+        latitude: number;
+        longitude: number;
+        status: any;
+        severity: any;
+        authorityNote: any;
+        createdAt: any;
+    }>;
+    product(barcode: string): Promise<{
+        barcode: string;
+        name: any;
+        brands: any;
+        quantity: any;
+        imageUrl: any;
+        categories: any;
+        ingredients: any;
+        allergens: any;
+        nutritionGrade: any;
+        novaGroup: any;
+        additives: any;
+        origins: any;
+        manufacturingPlaces: any;
+        stores: any;
+        countries: any;
+        labels: any;
+        vegan: string;
+        dataSource: string;
+        disclaimer: string;
+    }>;
+    createFoodReport(user: User, body: any, photo?: Express.Multer.File): Promise<{
+        id: string;
+        barcode: any;
+        productName: any;
+        issueType: any;
+        batchNumber: any;
+        purchaseState: any;
+        description: any;
+        symptoms: any;
+        photoUrl: any;
+        status: any;
+        createdAt: any;
+    }>;
+    foodReports(barcode: string): Promise<{
+        id: string;
+        barcode: any;
+        productName: any;
+        issueType: any;
+        batchNumber: any;
+        purchaseState: any;
+        description: any;
+        symptoms: any;
+        photoUrl: any;
+        status: any;
+        createdAt: any;
+    }[]>;
+}

@@ -43,24 +43,7 @@ let GeminiService = GeminiService_1 = class GeminiService {
         const now = Date.now();
         this.requestTimestamps = this.requestTimestamps.filter((timestamp) => now - timestamp < this.requestWindowMs);
         if (this.requestTimestamps.length >= this.maxRequestsPerMinute) {
-            const oldestRequest = this.requestTimestamps[0];
-            const waitTime = this.requestWindowMs - (now - oldestRequest) + 2000;
-            if (waitTime > 0) {
-                this.logger.log(`Rate limit: Waiting ${Math.ceil(waitTime / 1000)}s before API call (${this.requestTimestamps.length}/${this.maxRequestsPerMinute} requests in last minute)`);
-                await new Promise((resolve) => setTimeout(resolve, waitTime));
-                const afterWait = Date.now();
-                this.requestTimestamps = this.requestTimestamps.filter((timestamp) => afterWait - timestamp < this.requestWindowMs);
-            }
-        }
-        if (this.requestTimestamps.length > 0) {
-            const lastRequest = this.requestTimestamps[this.requestTimestamps.length - 1];
-            const timeSinceLastRequest = now - lastRequest;
-            const minInterval = 30000;
-            if (timeSinceLastRequest < minInterval) {
-                const waitTime = minInterval - timeSinceLastRequest;
-                this.logger.log(`Enforcing minimum interval: Waiting ${Math.ceil(waitTime / 1000)}s (${timeSinceLastRequest}ms since last request)`);
-                await new Promise((resolve) => setTimeout(resolve, waitTime));
-            }
+            throw new Error('AI_RATE_LIMITED: use local fallback');
         }
         this.requestTimestamps.push(Date.now());
     }
@@ -93,16 +76,10 @@ let GeminiService = GeminiService_1 = class GeminiService {
             if (response.status === 200 && response.data.models) {
                 const models = response.data.models;
                 const preferredNames = [
-                    'gemini-2.5-flash',
-                    'gemini-1.5-flash',
-                    'gemini-2.0-flash',
-                    'gemini-1.5-pro',
-                    'gemini-pro',
-                    'gemini-1.0-pro',
+                    'gemini-3.1-flash-lite',
                 ];
                 for (const preferredName of preferredNames) {
-                    const model = models.find((m) => m.name.includes(preferredName) ||
-                        m.name.includes(preferredName.replace(/-/g, '_')));
+                    const model = models.find((m) => (m.name.split('/').pop() || m.name) === preferredName);
                     if (model) {
                         const modelName = model.name.split('/').pop() || model.name;
                         this.cachedModelName = modelName;
@@ -110,20 +87,14 @@ let GeminiService = GeminiService_1 = class GeminiService {
                         return modelName;
                     }
                 }
-                if (models.length > 0) {
-                    const modelName = models[0].name.split('/').pop() || models[0].name;
-                    this.cachedModelName = modelName;
-                    this.logger.log(`Using first available model: ${modelName}`);
-                    return modelName;
-                }
             }
         }
         catch (error) {
-            this.logger.warn('Failed to list models, using fallback', error);
+            this.logger.warn(`Failed to list Gemini models; using the configured fallback (${error instanceof Error ? error.message : 'unknown error'})`);
         }
-        this.cachedModelName = 'gemini-1.5-flash';
-        this.logger.log('Using fallback model: gemini-1.5-flash');
-        return 'gemini-1.5-flash';
+        this.cachedModelName = 'gemini-3.1-flash-lite';
+        this.logger.log('Using fallback model: gemini-3.1-flash-lite');
+        return 'gemini-3.1-flash-lite';
     }
     async makeApiRequest(prompt, options = {}) {
         let { temperature = 0.7, maxTokens = 1000, maxRetries = 3 } = options;
@@ -220,6 +191,8 @@ let GeminiService = GeminiService_1 = class GeminiService {
                 if (axios_1.default.isAxiosError(error)) {
                     const status = error.response?.status;
                     const errorData = error.response?.data;
+                    const safeMessage = errorData?.error?.message ?? error.message ?? 'Request failed';
+                    lastError = new Error(`Gemini API request failed${status ? ` (${status})` : ''}: ${safeMessage}`);
                     if (status === 429) {
                         const errorMessage = errorData?.error?.message || '';
                         const errorCode = errorData?.error?.code;
@@ -304,7 +277,7 @@ let GeminiService = GeminiService_1 = class GeminiService {
                 options,
             });
             this.processQueue().catch((error) => {
-                this.logger.error('Error processing request queue:', error);
+                this.logger.error(`Error processing Gemini request queue: ${error instanceof Error ? error.message : 'unknown error'}`);
             });
         });
     }

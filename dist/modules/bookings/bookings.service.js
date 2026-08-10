@@ -18,12 +18,28 @@ const mongoose_1 = require("@nestjs/mongoose");
 const mongoose_2 = require("mongoose");
 const booking_schema_1 = require("./schemas/booking.schema");
 const pet_schema_1 = require("../pets/schemas/pet.schema");
+const user_schema_1 = require("../users/schemas/user.schema");
 const notifications_service_1 = require("../notifications/notifications.service");
 let BookingsService = class BookingsService {
-    constructor(bookingModel, petModel, notificationsService) {
+    constructor(bookingModel, petModel, userModel, notificationsService) {
         this.bookingModel = bookingModel;
         this.petModel = petModel;
+        this.userModel = userModel;
         this.notificationsService = notificationsService;
+    }
+    async isActiveProvider(userId) {
+        const user = await this.userModel
+            .findById(userId)
+            .select('role hasActiveSubscription')
+            .lean()
+            .exec();
+        return Boolean(user?.hasActiveSubscription &&
+            (user.role === 'vet' || user.role === 'sitter'));
+    }
+    async assertActiveProvider(userId) {
+        if (!(await this.isActiveProvider(userId))) {
+            throw new common_1.ForbiddenException('An active veterinarian or pet sitter subscription is required');
+        }
     }
     async create(userId, createBookingDto) {
         if (!createBookingDto.petId) {
@@ -38,6 +54,18 @@ let BookingsService = class BookingsService {
             .exec();
         if (!selectedPet) {
             throw new common_1.ForbiddenException('The selected pet does not belong to this account');
+        }
+        const provider = await this.userModel
+            .findOne({
+            _id: new mongoose_2.Types.ObjectId(createBookingDto.providerId),
+            role: createBookingDto.providerType,
+            hasActiveSubscription: true,
+        })
+            .select('_id')
+            .lean()
+            .exec();
+        if (!provider) {
+            throw new common_1.ForbiddenException('The selected care provider is no longer available');
         }
         const booking = new this.bookingModel({
             owner: new mongoose_2.Types.ObjectId(userId),
@@ -80,13 +108,17 @@ let BookingsService = class BookingsService {
             query.owner = new mongoose_2.Types.ObjectId(userId);
         }
         else if (role === 'provider') {
+            await this.assertActiveProvider(userId);
             query.provider = new mongoose_2.Types.ObjectId(userId);
         }
         else {
-            query.$or = [
-                { owner: new mongoose_2.Types.ObjectId(userId) },
-                { provider: new mongoose_2.Types.ObjectId(userId) },
-            ];
+            const activeProvider = await this.isActiveProvider(userId);
+            query.$or = activeProvider
+                ? [
+                    { owner: new mongoose_2.Types.ObjectId(userId) },
+                    { provider: new mongoose_2.Types.ObjectId(userId) },
+                ]
+                : [{ owner: new mongoose_2.Types.ObjectId(userId) }];
         }
         const bookings = await this.bookingModel
             .find(query)
@@ -109,9 +141,11 @@ let BookingsService = class BookingsService {
         if (ownerId !== userId && providerId !== userId) {
             throw new common_1.ForbiddenException('You do not have access to this booking');
         }
+        if (providerId === userId && ownerId !== userId) {
+            await this.assertActiveProvider(userId);
+        }
         const canSeeFullPet = ownerId === userId ||
-            (providerId === userId &&
-                ['accepted', 'completed'].includes(booking.status));
+            (providerId === userId && booking.providerType === 'vet');
         await booking.populate([
             { path: 'owner', select: 'name email profileImage' },
             { path: 'provider', select: 'name email profileImage' },
@@ -134,6 +168,7 @@ let BookingsService = class BookingsService {
         if (providerId !== userId) {
             throw new common_1.ForbiddenException('Only the service provider can update booking status');
         }
+        await this.assertActiveProvider(userId);
         if (updateBookingDto.status &&
             ['accepted', 'rejected'].includes(updateBookingDto.status) &&
             booking.status !== 'pending') {
@@ -217,6 +252,9 @@ let BookingsService = class BookingsService {
         if (ownerId !== userId && providerId !== userId) {
             throw new common_1.ForbiddenException('You do not have permission to delete this booking');
         }
+        if (providerId === userId && ownerId !== userId) {
+            await this.assertActiveProvider(userId);
+        }
         await this.bookingModel.findByIdAndDelete(id).exec();
     }
 };
@@ -225,7 +263,9 @@ exports.BookingsService = BookingsService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, mongoose_1.InjectModel)(booking_schema_1.Booking.name)),
     __param(1, (0, mongoose_1.InjectModel)(pet_schema_1.Pet.name)),
+    __param(2, (0, mongoose_1.InjectModel)(user_schema_1.User.name)),
     __metadata("design:paramtypes", [mongoose_2.Model,
+        mongoose_2.Model,
         mongoose_2.Model,
         notifications_service_1.NotificationsService])
 ], BookingsService);

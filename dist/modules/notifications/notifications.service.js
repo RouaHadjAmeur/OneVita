@@ -41,6 +41,26 @@ let NotificationsService = class NotificationsService {
         });
         return notification.save();
     }
+    async createOneHealthAlertIfNew(userId, alertKey, title, message, metadata) {
+        const recipient = new mongoose_2.Types.ObjectId(userId);
+        const existing = await this.notificationModel
+            .exists({
+            recipient,
+            type: 'one_health_alert',
+            'metadata.alertKey': alertKey,
+        })
+            .exec();
+        if (existing)
+            return;
+        await this.create({
+            recipientId: userId,
+            senderId: userId,
+            type: 'one_health_alert',
+            title,
+            message,
+            metadata: { ...metadata, alertKey },
+        });
+    }
     async findAll(userId, unreadOnly = false) {
         const query = { recipient: new mongoose_2.Types.ObjectId(userId) };
         if (unreadOnly) {
