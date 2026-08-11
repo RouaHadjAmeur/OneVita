@@ -49,14 +49,24 @@ let EnvironmentCareService = class EnvironmentCareService {
         if (description.length < 10)
             throw new common_1.BadRequestException('Please provide a useful description');
         const isVideo = media.mimetype.startsWith('video/');
-        const upload = isVideo
-            ? await this.cloudinary.uploadAudio(media, 'environment-reports')
-            : await this.cloudinary.uploadImage(media, 'environment-reports');
+        let mediaUrl = '';
+        let mediaUploadStatus = 'uploaded';
+        try {
+            const upload = isVideo
+                ? await this.cloudinary.uploadAudio(media, 'environment-reports')
+                : await this.cloudinary.uploadImage(media, 'environment-reports');
+            mediaUrl = upload.secure_url;
+        }
+        catch (error) {
+            mediaUploadStatus = 'pending';
+            console.error('Environment report media upload deferred:', error);
+        }
         const report = await this.environmentReports.create({
             reporter: userId,
             category: body.category,
             description,
-            mediaUrl: upload.secure_url,
+            mediaUrl,
+            mediaUploadStatus,
             mediaType: isVideo ? 'video' : 'image',
             latitude,
             longitude,
@@ -222,10 +232,12 @@ let EnvironmentCareService = class EnvironmentCareService {
         const hasProfileLocation = Number.isFinite(user.latitude) && Number.isFinite(user.longitude);
         const latitude = this.roundCoordinate(hasProfileLocation ? Number(user.latitude) : 36.8065);
         const longitude = this.roundCoordinate(hasProfileLocation ? Number(user.longitude) : 10.1815);
-        const [weather, air] = await Promise.all([
+        const [weatherResult, airResult] = await Promise.allSettled([
             this.fetchWeather(latitude, longitude),
             this.fetchAir(latitude, longitude),
         ]);
+        const weather = weatherResult.status === 'fulfilled' ? weatherResult.value : null;
+        const air = airResult.status === 'fulfilled' ? airResult.value : null;
         const conditions = this.buildConditions(weather, air);
         return {
             location: {
@@ -242,10 +254,12 @@ let EnvironmentCareService = class EnvironmentCareService {
             recommendations: this.recommendations(conditions),
             advisories: [],
             dataSources: [
-                'Open-Meteo Weather',
-                'CAMS ENSEMBLE air-quality data via Open-Meteo',
+                ...(weather ? ['Open-Meteo Weather'] : []),
+                ...(air ? ['CAMS ENSEMBLE air-quality data via Open-Meteo'] : []),
             ],
             limitations: [
+                ...(!weather ? ['Live weather data is temporarily unavailable.'] : []),
+                ...(!air ? ['Live air-quality data is temporarily unavailable.'] : []),
                 'Water contamination and food recalls require an official local authority feed and are not inferred.',
                 'Regional estimates may differ from nearby ground sensors.',
             ],

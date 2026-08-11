@@ -14,8 +14,11 @@ export class EnvironmentReport {
   @Prop({ required: true, maxlength: 2000 })
   description: string;
 
-  @Prop({ required: true })
+  @Prop({ default: '' })
   mediaUrl: string;
+
+  @Prop({ enum: ['uploaded', 'pending'], default: 'uploaded' })
+  mediaUploadStatus: string;
 
   @Prop({ enum: ['image', 'video'], default: 'image' })
   mediaType: string;

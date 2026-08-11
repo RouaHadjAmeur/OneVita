@@ -28,9 +28,13 @@ __decorate([
     __metadata("design:type", String)
 ], EnvironmentReport.prototype, "description", void 0);
 __decorate([
-    (0, mongoose_1.Prop)({ required: true }),
+    (0, mongoose_1.Prop)({ default: '' }),
     __metadata("design:type", String)
 ], EnvironmentReport.prototype, "mediaUrl", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ enum: ['uploaded', 'pending'], default: 'uploaded' }),
+    __metadata("design:type", String)
+], EnvironmentReport.prototype, "mediaUploadStatus", void 0);
 __decorate([
     (0, mongoose_1.Prop)({ enum: ['image', 'video'], default: 'image' }),
     __metadata("design:type", String)

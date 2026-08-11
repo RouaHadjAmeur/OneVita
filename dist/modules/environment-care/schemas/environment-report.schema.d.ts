@@ -5,6 +5,7 @@ export declare class EnvironmentReport {
     category: string;
     description: string;
     mediaUrl: string;
+    mediaUploadStatus: string;
     mediaType: string;
     latitude: number;
     longitude: number;
