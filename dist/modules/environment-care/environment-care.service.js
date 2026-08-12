@@ -70,6 +70,7 @@ let EnvironmentCareService = class EnvironmentCareService {
             mediaType: isVideo ? 'video' : 'image',
             latitude,
             longitude,
+            address: String(body.address || '').trim().slice(0, 1000),
             severity: this.reportSeverity(body.category, description),
         });
         return this.publicReport(report.toObject());
@@ -190,9 +191,11 @@ let EnvironmentCareService = class EnvironmentCareService {
             category: report.category,
             description: report.description,
             mediaUrl: report.mediaUrl,
+            mediaUploadStatus: report.mediaUploadStatus || 'uploaded',
             mediaType: report.mediaType,
             latitude: Math.round(Number(report.latitude) * 1000) / 1000,
             longitude: Math.round(Number(report.longitude) * 1000) / 1000,
+            address: report.address || '',
             status: report.status,
             severity: report.severity,
             authorityNote: report.authorityNote || null,

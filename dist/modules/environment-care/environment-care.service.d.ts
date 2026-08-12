@@ -17,9 +17,11 @@ export declare class EnvironmentCareService {
         category: any;
         description: any;
         mediaUrl: any;
+        mediaUploadStatus: any;
         mediaType: any;
         latitude: number;
         longitude: number;
+        address: any;
         status: any;
         severity: any;
         authorityNote: any;
@@ -30,9 +32,11 @@ export declare class EnvironmentCareService {
         category: any;
         description: any;
         mediaUrl: any;
+        mediaUploadStatus: any;
         mediaType: any;
         latitude: number;
         longitude: number;
+        address: any;
         status: any;
         severity: any;
         authorityNote: any;
@@ -43,9 +47,11 @@ export declare class EnvironmentCareService {
         category: any;
         description: any;
         mediaUrl: any;
+        mediaUploadStatus: any;
         mediaType: any;
         latitude: number;
         longitude: number;
+        address: any;
         status: any;
         severity: any;
         authorityNote: any;

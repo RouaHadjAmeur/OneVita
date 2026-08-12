@@ -9,6 +9,7 @@ export declare class EnvironmentReport {
     mediaType: string;
     latitude: number;
     longitude: number;
+    address: string;
     status: string;
     severity: string;
     authorityNote?: string;

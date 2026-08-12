@@ -9,6 +9,8 @@ import { ChatbotMessageDto } from './dto/chatbot-message.dto';
 import { ChatbotImageAnalysisDto } from './dto/chatbot-image-analysis.dto';
 import { ChatbotResponseDto } from './dto/chatbot-response.dto';
 import { ChatbotHistoryResponseDto } from './dto/chatbot-history-response.dto';
+import { HumanHealthProfileDocument } from '../human-health/schemas/human-health-profile.schema';
+import { EnvironmentReportDocument, FoodSafetyReportDocument } from '../environment-care/schemas/environment-report.schema';
 export declare class ChatbotService {
     private readonly chatbotGeminiService;
     private readonly cloudinaryService;
@@ -16,8 +18,11 @@ export declare class ChatbotService {
     private readonly petModel;
     private readonly medicalHistoryModel;
     private readonly chatbotMessageModel;
+    private readonly humanHealthModel;
+    private readonly environmentReportModel;
+    private readonly foodSafetyReportModel;
     private readonly logger;
-    constructor(chatbotGeminiService: ChatbotGeminiService, cloudinaryService: CloudinaryService, userModel: Model<UserDocument>, petModel: Model<PetDocument>, medicalHistoryModel: Model<MedicalHistoryDocument>, chatbotMessageModel: Model<ChatbotMessageDocument>);
+    constructor(chatbotGeminiService: ChatbotGeminiService, cloudinaryService: CloudinaryService, userModel: Model<UserDocument>, petModel: Model<PetDocument>, medicalHistoryModel: Model<MedicalHistoryDocument>, chatbotMessageModel: Model<ChatbotMessageDocument>, humanHealthModel: Model<HumanHealthProfileDocument>, environmentReportModel: Model<EnvironmentReportDocument>, foodSafetyReportModel: Model<FoodSafetyReportDocument>);
     private getUserPetsWithHistory;
     private buildPetInformationString;
     private getConversationHistory;
@@ -29,6 +34,11 @@ export declare class ChatbotService {
     private getPetPhotosForComparison;
     private buildImageAnalysisPrompt;
     private buildContextualPromptWithHistory;
+    private buildModeSafetyInstruction;
+    private getUrgentSafetyResponse;
+    private enforceSafetyFooter;
+    private saveExchange;
+    private buildGlobalContext;
     private buildDefaultPromptWithHistory;
     analyzeImage(userId: string, imageAnalysisDto: ChatbotImageAnalysisDto): Promise<ChatbotResponseDto>;
     getHistory(userId: string, limit?: number, offset?: number): Promise<ChatbotHistoryResponseDto>;

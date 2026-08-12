@@ -22,8 +22,19 @@ __decorate([
     }),
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsNotEmpty)(),
+    (0, class_validator_1.MaxLength)(4000),
     __metadata("design:type", String)
 ], ChatbotMessageDto.prototype, "message", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({
+        description: 'OneVita care mode used to scope prompts and private context',
+        enum: ['global', 'pet', 'human', 'environment'],
+        default: 'global',
+    }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsIn)(['global', 'pet', 'human', 'environment']),
+    __metadata("design:type", String)
+], ChatbotMessageDto.prototype, "mode", void 0);
 __decorate([
     (0, swagger_1.ApiPropertyOptional)({
         description: 'Optional conversation context or history',

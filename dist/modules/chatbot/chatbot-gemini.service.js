@@ -117,6 +117,11 @@ let ChatbotGeminiService = ChatbotGeminiService_1 = class ChatbotGeminiService {
         if (this.cachedModelName) {
             return this.cachedModelName;
         }
+        const configuredModel = this.configService.get('AI_MODEL');
+        if (configuredModel?.trim()) {
+            this.cachedModelName = configuredModel.trim();
+            return this.cachedModelName;
+        }
         try {
             const response = await this.axiosInstance.get(`${this.baseURL}/models?key=${this.apiKey}`);
             if (response.status === 200 && response.data.models) {
@@ -150,9 +155,9 @@ let ChatbotGeminiService = ChatbotGeminiService_1 = class ChatbotGeminiService {
         catch (error) {
             this.logger.warn('Failed to list models, using fallback', error);
         }
-        this.cachedModelName = 'gemini-1.5-flash';
-        this.logger.log('Using fallback model: gemini-1.5-flash');
-        return 'gemini-1.5-flash';
+        this.cachedModelName = 'gemini-2.5-flash';
+        this.logger.log('Using fallback model: gemini-2.5-flash');
+        return 'gemini-2.5-flash';
     }
     async generateTextInternal(prompt, options = {}) {
         let { temperature = 0.7, maxTokens = 500 } = options;

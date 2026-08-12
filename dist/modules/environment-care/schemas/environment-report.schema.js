@@ -48,6 +48,10 @@ __decorate([
     __metadata("design:type", Number)
 ], EnvironmentReport.prototype, "longitude", void 0);
 __decorate([
+    (0, mongoose_1.Prop)({ maxlength: 1000, default: '' }),
+    __metadata("design:type", String)
+], EnvironmentReport.prototype, "address", void 0);
+__decorate([
     (0, mongoose_1.Prop)({ enum: ['submitted', 'under_review', 'confirmed', 'resolved', 'rejected'], default: 'submitted', index: true }),
     __metadata("design:type", String)
 ], EnvironmentReport.prototype, "status", void 0);

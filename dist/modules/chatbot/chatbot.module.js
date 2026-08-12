@@ -18,6 +18,8 @@ const pet_schema_1 = require("../pets/schemas/pet.schema");
 const medical_history_schema_1 = require("../pets/schemas/medical-history.schema");
 const user_schema_1 = require("../users/schemas/user.schema");
 const chatbot_message_schema_1 = require("./schemas/chatbot-message.schema");
+const human_health_profile_schema_1 = require("../human-health/schemas/human-health-profile.schema");
+const environment_report_schema_1 = require("../environment-care/schemas/environment-report.schema");
 let ChatbotModule = class ChatbotModule {
 };
 exports.ChatbotModule = ChatbotModule;
@@ -31,6 +33,9 @@ exports.ChatbotModule = ChatbotModule = __decorate([
                 { name: pet_schema_1.Pet.name, schema: pet_schema_1.PetSchema },
                 { name: medical_history_schema_1.MedicalHistory.name, schema: medical_history_schema_1.MedicalHistorySchema },
                 { name: chatbot_message_schema_1.ChatbotMessage.name, schema: chatbot_message_schema_1.ChatbotMessageSchema },
+                { name: human_health_profile_schema_1.HumanHealthProfile.name, schema: human_health_profile_schema_1.HumanHealthProfileSchema },
+                { name: environment_report_schema_1.EnvironmentReport.name, schema: environment_report_schema_1.EnvironmentReportSchema },
+                { name: environment_report_schema_1.FoodSafetyReport.name, schema: environment_report_schema_1.FoodSafetyReportSchema },
             ]),
         ],
         controllers: [chatbot_controller_1.ChatbotController],

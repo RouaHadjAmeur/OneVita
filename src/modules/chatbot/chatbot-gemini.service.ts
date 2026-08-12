@@ -232,6 +232,12 @@ export class ChatbotGeminiService {
       return this.cachedModelName;
     }
 
+    const configuredModel = this.configService.get<string>('AI_MODEL');
+    if (configuredModel?.trim()) {
+      this.cachedModelName = configuredModel.trim();
+      return this.cachedModelName;
+    }
+
     try {
       const response = await this.axiosInstance.get<{
         models?: Array<{ name: string }>;
@@ -276,9 +282,9 @@ export class ChatbotGeminiService {
     }
 
     // Fallback to flash model (better free tier quotas)
-    this.cachedModelName = 'gemini-1.5-flash';
-    this.logger.log('Using fallback model: gemini-1.5-flash');
-    return 'gemini-1.5-flash';
+    this.cachedModelName = 'gemini-2.5-flash';
+    this.logger.log('Using fallback model: gemini-2.5-flash');
+    return 'gemini-2.5-flash';
   }
 
   /**

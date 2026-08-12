@@ -68,6 +68,11 @@ export class ChatbotController {
           type: 'string',
           description: 'Optional conversation context',
         },
+        mode: {
+          type: 'string',
+          enum: ['global', 'pet', 'human', 'environment'],
+          description: 'Care mode; global can route across all OneVita modules',
+        },
       },
       required: ['message'],
     },
@@ -94,6 +99,7 @@ export class ChatbotController {
     const messageDto: ChatbotMessageDto & { image?: string } = {
       message: body.message,
       context: body.context,
+      mode: body.mode ?? 'global',
       ...(imageBase64 && { image: imageBase64 }),
     };
 
@@ -213,4 +219,3 @@ export class ChatbotController {
     return this.chatbotService.clearHistory(userId);
   }
 }
-

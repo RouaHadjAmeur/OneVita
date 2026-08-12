@@ -37,6 +37,7 @@ let ChatbotController = class ChatbotController {
         const messageDto = {
             message: body.message,
             context: body.context,
+            mode: body.mode ?? 'global',
             ...(imageBase64 && { image: imageBase64 }),
         };
         return this.chatbotService.processMessage(userId, messageDto);
@@ -99,6 +100,11 @@ __decorate([
                 context: {
                     type: 'string',
                     description: 'Optional conversation context',
+                },
+                mode: {
+                    type: 'string',
+                    enum: ['global', 'pet', 'human', 'environment'],
+                    description: 'Care mode; global can route across all OneVita modules',
                 },
             },
             required: ['message'],

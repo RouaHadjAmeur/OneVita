@@ -17,6 +17,16 @@ import {
   ChatbotMessage,
   ChatbotMessageSchema,
 } from './schemas/chatbot-message.schema';
+import {
+  HumanHealthProfile,
+  HumanHealthProfileSchema,
+} from '../human-health/schemas/human-health-profile.schema';
+import {
+  EnvironmentReport,
+  EnvironmentReportSchema,
+  FoodSafetyReport,
+  FoodSafetyReportSchema,
+} from '../environment-care/schemas/environment-report.schema';
 
 @Module({
   imports: [
@@ -27,6 +37,9 @@ import {
       { name: Pet.name, schema: PetSchema },
       { name: MedicalHistory.name, schema: MedicalHistorySchema },
       { name: ChatbotMessage.name, schema: ChatbotMessageSchema },
+      { name: HumanHealthProfile.name, schema: HumanHealthProfileSchema },
+      { name: EnvironmentReport.name, schema: EnvironmentReportSchema },
+      { name: FoodSafetyReport.name, schema: FoodSafetyReportSchema },
     ]),
   ],
   controllers: [ChatbotController],

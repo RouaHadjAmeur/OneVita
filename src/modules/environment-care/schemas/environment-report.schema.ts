@@ -29,6 +29,9 @@ export class EnvironmentReport {
   @Prop({ required: true, min: -180, max: 180 })
   longitude: number;
 
+  @Prop({ maxlength: 1000, default: '' })
+  address: string;
+
   @Prop({ enum: ['submitted', 'under_review', 'confirmed', 'resolved', 'rejected'], default: 'submitted', index: true })
   status: string;
 
