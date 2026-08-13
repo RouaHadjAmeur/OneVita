@@ -232,27 +232,43 @@ export class ChatbotGeminiService {
       return this.cachedModelName;
     }
 
-    const configuredModel = this.configService.get<string>('AI_MODEL');
-    if (configuredModel?.trim()) {
-      this.cachedModelName = configuredModel.trim();
-      return this.cachedModelName;
-    }
-
     try {
       const response = await this.axiosInstance.get<{
-        models?: Array<{ name: string }>;
+        models?: Array<{
+          name: string;
+          supportedGenerationMethods?: string[];
+        }>;
       }>(`${this.baseURL}/models?key=${this.apiKey}`);
 
       if (response.status === 200 && response.data.models) {
-        const models = response.data.models;
+        const models = response.data.models.filter((model) =>
+          (model.supportedGenerationMethods ?? []).includes('generateContent'),
+        );
+        const configuredModel = this.configService
+          .get<string>('AI_MODEL')
+          ?.trim()
+          .replace(/^models\//, '');
+
+        if (configuredModel) {
+          const configured = models.find(
+            (model) => model.name.replace(/^models\//, '') === configuredModel,
+          );
+          if (configured) {
+            this.cachedModelName = configuredModel;
+            this.logger.log(
+              `Using configured Gemini model: ${configuredModel}`,
+            );
+            return configuredModel;
+          }
+          this.logger.warn(
+            `Configured AI_MODEL "${configuredModel}" is unavailable; selecting an available Flash model`,
+          );
+        }
         // Prioritize Flash models (more generous free tier quotas)
         const preferredNames = [
           'gemini-2.5-flash', // Newest flash model with best quotas
-          'gemini-1.5-flash', // Fast and generous free tier
           'gemini-2.0-flash', // Alternative flash model
-          'gemini-1.5-pro', // Fallback to pro if flash not available
-          'gemini-pro',
-          'gemini-1.0-pro',
+          'gemini-flash-latest',
         ];
 
         for (const preferredName of preferredNames) {
@@ -269,22 +285,35 @@ export class ChatbotGeminiService {
           }
         }
 
-        // Fallback to first available model
-        if (models.length > 0) {
-          const modelName = models[0].name.split('/').pop() || models[0].name;
+        // Prefer any remaining Flash model before an arbitrary compatible model.
+        const fallbackModel =
+          models.find((model) => /flash/i.test(model.name)) ?? models[0];
+        if (fallbackModel) {
+          const modelName =
+            fallbackModel.name.split('/').pop() || fallbackModel.name;
           this.cachedModelName = modelName;
-          this.logger.log(`Using first available model: ${modelName}`);
+          this.logger.log(`Using available Gemini model: ${modelName}`);
           return modelName;
         }
       }
     } catch (error) {
-      this.logger.warn('Failed to list models, using fallback', error);
+      this.logger.warn(
+        `Failed to list Gemini models: ${this.safeErrorMessage(error)}`,
+      );
     }
 
-    // Fallback to flash model (better free tier quotas)
-    this.cachedModelName = 'gemini-2.5-flash';
-    this.logger.log('Using fallback model: gemini-2.5-flash');
-    return 'gemini-2.5-flash';
+    throw new Error(
+      'No Gemini model supporting generateContent is available for this API key',
+    );
+  }
+
+  private safeErrorMessage(error: unknown): string {
+    if (axios.isAxiosError(error)) {
+      const status = error.response?.status;
+      const providerMessage = error.response?.data?.error?.message;
+      return `Gemini request failed${status ? ` (${status})` : ''}${providerMessage ? `: ${providerMessage}` : ''}`;
+    }
+    return error instanceof Error ? error.message : String(error);
   }
 
   /**

@@ -272,7 +272,7 @@ User Question: ${userMessage}`;
             };
         }
         catch (error) {
-            this.logger.error('Error processing chatbot message:', error);
+            this.logger.error(`Error processing chatbot message: ${this.safeErrorMessage(error)}`);
             throw error;
         }
     }
@@ -440,6 +440,14 @@ USER'S PETS INFORMATION:`;
             role: 'assistant',
             content: response,
         });
+    }
+    safeErrorMessage(error) {
+        if (axios_1.default.isAxiosError(error)) {
+            const status = error.response?.status;
+            const providerMessage = error.response?.data?.error?.message;
+            return `upstream request failed${status ? ` (${status})` : ''}${providerMessage ? `: ${providerMessage}` : ''}`;
+        }
+        return error instanceof Error ? error.message : String(error);
     }
     async buildGlobalContext(userId, message) {
         const owner = new mongoose_2.Types.ObjectId(userId);

@@ -38,6 +38,7 @@ export declare class ChatbotService {
     private getUrgentSafetyResponse;
     private enforceSafetyFooter;
     private saveExchange;
+    private safeErrorMessage;
     private buildGlobalContext;
     private buildDefaultPromptWithHistory;
     analyzeImage(userId: string, imageAnalysisDto: ChatbotImageAnalysisDto): Promise<ChatbotResponseDto>;

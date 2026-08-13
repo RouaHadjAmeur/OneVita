@@ -15,6 +15,7 @@ export declare class ChatbotGeminiService {
     private waitForRateLimit;
     private processQueue;
     private getAvailableModel;
+    private safeErrorMessage;
     private generateTextInternal;
     private analyzeImageInternal;
     private analyzeImageWithPetPhotosInternal;
