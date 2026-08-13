@@ -11,6 +11,9 @@ export declare class Veterinarian {
     latitude?: number;
     longitude?: number;
     bio?: string;
+    education?: string;
+    languages?: string[];
+    consultationFee?: number;
     licenseImageUrl?: string;
     clinicImageUrl?: string;
 }

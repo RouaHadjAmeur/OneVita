@@ -7,9 +7,22 @@ import {
 } from 'class-validator';
 
 export class UpdateBookingDto {
-  @IsEnum(['pending', 'accepted', 'rejected', 'completed', 'cancelled'])
+  @IsEnum([
+    'pending',
+    'reschedule_pending',
+    'accepted',
+    'rejected',
+    'completed',
+    'cancelled',
+  ])
   @IsOptional()
-  status?: 'pending' | 'accepted' | 'rejected' | 'completed' | 'cancelled';
+  status?:
+    | 'pending'
+    | 'reschedule_pending'
+    | 'accepted'
+    | 'rejected'
+    | 'completed'
+    | 'cancelled';
 
   @IsString()
   @IsOptional()

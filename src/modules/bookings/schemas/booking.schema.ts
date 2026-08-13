@@ -33,8 +33,21 @@ export class Booking {
   price?: number; // Booking price (optional)
 
   @Prop({
+    enum: ['unpaid', 'paid', 'refunded', 'not_required'],
+    default: 'unpaid',
+  })
+  paymentStatus?: string;
+
+  @Prop({
     type: String,
-    enum: ['pending', 'accepted', 'rejected', 'completed', 'cancelled'],
+    enum: [
+      'pending',
+      'reschedule_pending',
+      'accepted',
+      'rejected',
+      'completed',
+      'cancelled',
+    ],
     default: 'pending',
   })
   status: string;
@@ -53,6 +66,12 @@ export class Booking {
 
   @Prop({ type: String, maxlength: 2000 })
   providerNote?: string; // Appointment/pet note written by the provider
+
+  @Prop({ type: Date })
+  rescheduleProposedAt?: Date;
+
+  @Prop({ type: Date })
+  ownerRespondedAt?: Date;
 }
 
 export const BookingSchema = SchemaFactory.createForClass(Booking);

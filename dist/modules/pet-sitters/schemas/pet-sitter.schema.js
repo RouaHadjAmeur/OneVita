@@ -59,6 +59,14 @@ __decorate([
     (0, mongoose_1.Prop)(),
     __metadata("design:type", String)
 ], PetSitter.prototype, "bio", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ min: 0, max: 23, default: 8 }),
+    __metadata("design:type", Number)
+], PetSitter.prototype, "workdayStartHour", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ min: 1, max: 24, default: 18 }),
+    __metadata("design:type", Number)
+], PetSitter.prototype, "workdayEndHour", void 0);
 exports.PetSitter = PetSitter = __decorate([
     (0, mongoose_1.Schema)({ timestamps: true, collection: 'pet-sitters' })
 ], PetSitter);

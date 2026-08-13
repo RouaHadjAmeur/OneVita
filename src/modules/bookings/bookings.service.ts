@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
@@ -11,6 +12,10 @@ import { Booking, BookingDocument } from './schemas/booking.schema';
 import { Pet, PetDocument } from '../pets/schemas/pet.schema';
 import { User, UserDocument } from '../users/schemas/user.schema';
 import { NotificationsService } from '../notifications/notifications.service';
+import {
+  PetSitter,
+  PetSitterDocument,
+} from '../pet-sitters/schemas/pet-sitter.schema';
 
 @Injectable()
 export class BookingsService {
@@ -21,6 +26,8 @@ export class BookingsService {
     private readonly petModel: Model<PetDocument>,
     @InjectModel(User.name)
     private readonly userModel: Model<UserDocument>,
+    @InjectModel(PetSitter.name)
+    private readonly petSitterModel: Model<PetSitterDocument>,
     private readonly notificationsService: NotificationsService,
   ) {}
 
@@ -79,6 +86,64 @@ export class BookingsService {
       );
     }
 
+    const dateTime = new Date(createBookingDto.dateTime);
+    const duration = Math.max(
+      30,
+      Math.min(createBookingDto.duration ?? 60, 1440),
+    );
+    let price = createBookingDto.price;
+    let paymentStatus = 'not_required';
+
+    if (createBookingDto.providerType === 'sitter') {
+      const sitter = await this.petSitterModel
+        .findOne({ user: new Types.ObjectId(createBookingDto.providerId) })
+        .lean();
+      if (!sitter) throw new NotFoundException('Pet sitter profile not found');
+      const localHour = dateTime.getUTCHours();
+      const weekend = dateTime.getUTCDay() === 0 || dateTime.getUTCDay() === 6;
+      const startHour = sitter.workdayStartHour ?? 8;
+      const endHour = sitter.workdayEndHour ?? 18;
+      const endDate = new Date(dateTime.getTime() + duration * 60000);
+      if (weekend && !sitter.availableWeekends) {
+        throw new BadRequestException(
+          'This sitter is not available on weekends',
+        );
+      }
+      if (localHour < startHour || endDate.getUTCHours() > endHour) {
+        throw new BadRequestException(
+          `Select a time within the sitter working hours (${startHour}:00–${endHour}:00)`,
+        );
+      }
+      price = Number(((sitter.hourlyRate * duration) / 60).toFixed(2));
+      paymentStatus = 'unpaid';
+
+      const end = new Date(dateTime.getTime() + duration * 60000);
+      const nearbyBookings = await this.bookingModel
+        .find({
+          provider: new Types.ObjectId(createBookingDto.providerId),
+          status: { $in: ['accepted', 'reschedule_pending'] },
+          dateTime: {
+            $lt: end,
+            $gte: new Date(dateTime.getTime() - 1440 * 60000),
+          },
+        })
+        .select('dateTime duration')
+        .lean();
+      const conflicts = nearbyBookings.some((item) => {
+        const existingStart = new Date(item.dateTime).getTime();
+        const existingEnd =
+          existingStart + Math.max(item.duration ?? 60, 30) * 60000;
+        return (
+          dateTime.getTime() < existingEnd && end.getTime() > existingStart
+        );
+      });
+      if (conflicts) {
+        throw new BadRequestException(
+          'This sitter already has an appointment near the selected time',
+        );
+      }
+    }
+
     const booking = new this.bookingModel({
       owner: new Types.ObjectId(userId),
       provider: new Types.ObjectId(createBookingDto.providerId),
@@ -88,9 +153,10 @@ export class BookingsService {
         : undefined,
       serviceType: createBookingDto.serviceType,
       description: createBookingDto.description,
-      dateTime: new Date(createBookingDto.dateTime),
-      duration: createBookingDto.duration,
-      price: createBookingDto.price,
+      dateTime,
+      duration,
+      price,
+      paymentStatus,
       status: 'pending',
     });
 
@@ -200,11 +266,60 @@ export class BookingsService {
       throw new NotFoundException(`Booking with ID ${id} not found`);
     }
 
-    // Verify user is the provider (only provider can accept/reject)
+    const ownerId = String(booking.owner);
     const providerId = String(booking.provider);
+
+    // The owner alone accepts or declines a time proposed by the provider.
+    if (ownerId === userId && booking.status === 'reschedule_pending') {
+      if (!['accepted', 'rejected'].includes(updateBookingDto.status ?? '')) {
+        throw new ForbiddenException(
+          'The owner can only accept or decline the proposed appointment time',
+        );
+      }
+      const accepted = updateBookingDto.status === 'accepted';
+      const updated = await this.bookingModel
+        .findByIdAndUpdate(
+          id,
+          {
+            $set: {
+              status: updateBookingDto.status,
+              ownerRespondedAt: new Date(),
+              ...(updateBookingDto.rejectionReason
+                ? { rejectionReason: updateBookingDto.rejectionReason }
+                : {}),
+            },
+          },
+          { new: true },
+        )
+        .populate([
+          { path: 'owner', select: 'name email profileImage' },
+          { path: 'provider', select: 'name email profileImage' },
+          { path: 'pet', select: 'name species breed' },
+        ])
+        .exec();
+      await this.notificationsService.create({
+        recipientId: providerId,
+        senderId: userId,
+        type: accepted
+          ? 'booking_reschedule_accepted'
+          : 'booking_reschedule_declined',
+        title: accepted ? 'New Time Accepted' : 'New Time Declined',
+        message: accepted
+          ? `The pet owner accepted the proposed time for ${booking.serviceType}.`
+          : `The pet owner declined the proposed time for ${booking.serviceType}.`,
+        bookingId: id,
+        metadata: {
+          bookingId: id,
+          serviceType: booking.serviceType,
+          dateTime: booking.dateTime,
+        },
+      });
+      return updated;
+    }
+
     if (providerId !== userId) {
       throw new ForbiddenException(
-        'Only the service provider can update booking status',
+        'Only the assigned provider can update this booking',
       );
     }
     await this.assertActiveProvider(userId);
@@ -234,12 +349,15 @@ export class BookingsService {
 
     if (updateBookingDto.dateTime) {
       updateData.dateTime = new Date(updateBookingDto.dateTime);
+      updateData.status = 'reschedule_pending';
+      updateData.rescheduleProposedAt = new Date();
+      updateData.ownerRespondedAt = null;
       await this.notificationsService.create({
         recipientId: String(booking.owner),
         senderId: userId,
         type: 'booking_rescheduled',
-        title: 'New Appointment Time Suggested',
-        message: `A new time was suggested for your ${booking.serviceType} booking.`,
+        title: 'Confirm New Appointment Time',
+        message: `Your provider suggested a new time for ${booking.serviceType}. Open the appointment to accept or decline it.`,
         bookingId: id,
         metadata: {
           bookingId: id,

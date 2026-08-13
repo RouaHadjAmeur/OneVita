@@ -13,4 +13,6 @@ export declare class CreateSitterDto {
     latitude?: number;
     longitude?: number;
     bio?: string;
+    workdayStartHour?: number;
+    workdayEndHour?: number;
 }

@@ -10,6 +10,9 @@ export declare class UpdateVetDto {
     latitude?: number;
     longitude?: number;
     bio?: string;
+    education?: string;
+    languages?: string[];
+    consultationFee?: number;
     licenseImageBase64?: string;
     clinicImageBase64?: string;
 }

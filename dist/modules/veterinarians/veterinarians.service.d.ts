@@ -21,4 +21,5 @@ export declare class VeterinariansService {
     update(id: string, updateVetDto: UpdateVetDto): Promise<UserDocument>;
     remove(id: string): Promise<void>;
     convertUserToVet(userId: string, vetData: Omit<CreateVetDto, 'email' | 'name' | 'password'>): Promise<UserDocument>;
+    private mergeProfessionalFields;
 }

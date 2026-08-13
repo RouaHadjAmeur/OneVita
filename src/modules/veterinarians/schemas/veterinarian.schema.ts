@@ -40,6 +40,15 @@ export class Veterinarian {
   bio?: string;
 
   @Prop()
+  education?: string;
+
+  @Prop({ type: [String], default: [] })
+  languages?: string[];
+
+  @Prop({ min: 0 })
+  consultationFee?: number;
+
+  @Prop()
   licenseImageUrl?: string;
 
   @Prop()

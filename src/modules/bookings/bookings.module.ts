@@ -6,6 +6,10 @@ import { Booking, BookingSchema } from './schemas/booking.schema';
 import { User, UserSchema } from '../users/schemas/user.schema';
 import { Pet, PetSchema } from '../pets/schemas/pet.schema';
 import { NotificationsModule } from '../notifications/notifications.module';
+import {
+  PetSitter,
+  PetSitterSchema,
+} from '../pet-sitters/schemas/pet-sitter.schema';
 
 @Module({
   imports: [
@@ -13,6 +17,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
       { name: Booking.name, schema: BookingSchema },
       { name: User.name, schema: UserSchema },
       { name: Pet.name, schema: PetSchema },
+      { name: PetSitter.name, schema: PetSitterSchema },
     ]),
     NotificationsModule,
   ],

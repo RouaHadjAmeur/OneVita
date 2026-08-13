@@ -70,4 +70,12 @@ export class CreateSitterDto {
   @IsOptional()
   @IsString()
   bio?: string;
+
+  @IsOptional()
+  @IsNumber()
+  workdayStartHour?: number;
+
+  @IsOptional()
+  @IsNumber()
+  workdayEndHour?: number;
 }

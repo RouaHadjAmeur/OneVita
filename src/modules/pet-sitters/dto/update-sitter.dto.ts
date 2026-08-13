@@ -63,5 +63,12 @@ export class UpdateSitterDto {
   @IsOptional()
   @IsString()
   bio?: string;
-}
 
+  @IsOptional()
+  @IsNumber()
+  workdayStartHour?: number;
+
+  @IsOptional()
+  @IsNumber()
+  workdayEndHour?: number;
+}

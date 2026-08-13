@@ -100,6 +100,9 @@ let VeterinariansService = class VeterinariansService {
             latitude: createVetDto.latitude,
             longitude: createVetDto.longitude,
             bio: createVetDto.bio,
+            education: createVetDto.education,
+            languages: createVetDto.languages ?? [],
+            consultationFee: createVetDto.consultationFee,
             licenseImageUrl: uploadedImages.licenseImageUrl,
             clinicImageUrl: uploadedImages.clinicImageUrl,
         });
@@ -128,6 +131,7 @@ let VeterinariansService = class VeterinariansService {
             if (vet.longitude !== undefined) {
                 user.longitude = vet.longitude;
             }
+            this.mergeProfessionalFields(user, vet);
             return [user];
         });
     }
@@ -146,16 +150,7 @@ let VeterinariansService = class VeterinariansService {
         if (!user || !('_id' in user)) {
             throw new common_1.NotFoundException(`Veterinarian with ID ${id} not found`);
         }
-        user.vetLicenseNumber = vet.licenseNumber;
-        user.vetClinicName = vet.clinicName;
-        user.vetAddress = vet.clinicAddress;
-        user.vetSpecializations = vet.specializations;
-        user.vetYearsOfExperience = vet.yearsOfExperience;
-        user.vetBio = vet.bio;
-        user.vetLicenseImageUrl = vet.licenseImageUrl;
-        user.vetClinicImageUrl = vet.clinicImageUrl;
-        user.latitude = vet.latitude;
-        user.longitude = vet.longitude;
+        this.mergeProfessionalFields(user, vet);
         return user;
     }
     async findByEmail(email) {
@@ -209,6 +204,15 @@ let VeterinariansService = class VeterinariansService {
         if (updateVetDto.bio !== undefined) {
             vetFields.bio = updateVetDto.bio;
         }
+        if (updateVetDto.education !== undefined) {
+            vetFields.education = updateVetDto.education;
+        }
+        if (updateVetDto.languages !== undefined) {
+            vetFields.languages = updateVetDto.languages;
+        }
+        if (updateVetDto.consultationFee !== undefined) {
+            vetFields.consultationFee = updateVetDto.consultationFee;
+        }
         const uploadedImages = await this.resolveVetImages(updateVetDto);
         if (uploadedImages.licenseImageUrl !== undefined) {
             vetFields.licenseImageUrl = uploadedImages.licenseImageUrl;
@@ -230,16 +234,7 @@ let VeterinariansService = class VeterinariansService {
         if (!user || !('_id' in user)) {
             throw new common_1.NotFoundException('User not populated correctly');
         }
-        user.vetLicenseNumber = vet.licenseNumber;
-        user.vetClinicName = vet.clinicName;
-        user.vetAddress = vet.clinicAddress;
-        user.vetSpecializations = vet.specializations;
-        user.vetYearsOfExperience = vet.yearsOfExperience;
-        user.vetBio = vet.bio;
-        user.vetLicenseImageUrl = vet.licenseImageUrl;
-        user.vetClinicImageUrl = vet.clinicImageUrl;
-        user.latitude = vet.latitude;
-        user.longitude = vet.longitude;
+        this.mergeProfessionalFields(user, vet);
         return user;
     }
     async remove(id) {
@@ -272,6 +267,9 @@ let VeterinariansService = class VeterinariansService {
                     clinicName: vetData.clinicName,
                     clinicAddress: vetData.clinicAddress,
                     specializations: vetData.specializations || [],
+                    education: vetData.education,
+                    languages: vetData.languages || [],
+                    consultationFee: vetData.consultationFee,
                     yearsOfExperience: vetData.yearsOfExperience,
                     latitude: vetData.latitude,
                     longitude: vetData.longitude,
@@ -290,6 +288,9 @@ let VeterinariansService = class VeterinariansService {
                 clinicName: vetData.clinicName,
                 clinicAddress: vetData.clinicAddress,
                 specializations: vetData.specializations || [],
+                education: vetData.education,
+                languages: vetData.languages || [],
+                consultationFee: vetData.consultationFee,
                 yearsOfExperience: vetData.yearsOfExperience,
                 latitude: vetData.latitude,
                 longitude: vetData.longitude,
@@ -311,7 +312,31 @@ let VeterinariansService = class VeterinariansService {
             console.log(`[Vet Conversion] User ${userId} converted to vet role`);
         }
         const updatedUser = await this.usersService.findOne(userId);
+        if (veterinarian)
+            this.mergeProfessionalFields(updatedUser, veterinarian);
         return updatedUser;
+    }
+    mergeProfessionalFields(user, vet) {
+        const target = user;
+        target.licenseNumber = vet.licenseNumber;
+        target.clinicName = vet.clinicName;
+        target.clinicAddress = vet.clinicAddress;
+        target.specializations = vet.specializations ?? [];
+        target.yearsOfExperience = vet.yearsOfExperience;
+        target.bio = vet.bio;
+        target.education = vet.education;
+        target.languages = vet.languages ?? [];
+        target.consultationFee = vet.consultationFee;
+        target.licenseImageUrl = vet.licenseImageUrl;
+        target.clinicImageUrl = vet.clinicImageUrl;
+        target.latitude = vet.latitude;
+        target.longitude = vet.longitude;
+        target.vetLicenseNumber = vet.licenseNumber;
+        target.vetClinicName = vet.clinicName;
+        target.vetAddress = vet.clinicAddress;
+        target.vetSpecializations = vet.specializations ?? [];
+        target.vetYearsOfExperience = vet.yearsOfExperience;
+        target.vetBio = vet.bio;
     }
 };
 exports.VeterinariansService = VeterinariansService;

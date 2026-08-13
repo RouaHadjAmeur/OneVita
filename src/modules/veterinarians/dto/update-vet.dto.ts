@@ -56,6 +56,19 @@ export class UpdateVetDto {
 
   @IsOptional()
   @IsString()
+  education?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  languages?: string[];
+
+  @IsOptional()
+  @IsNumber()
+  consultationFee?: number;
+
+  @IsOptional()
+  @IsString()
   licenseImageBase64?: string;
 
   @IsOptional()

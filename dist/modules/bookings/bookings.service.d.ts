@@ -5,12 +5,14 @@ import { BookingDocument } from './schemas/booking.schema';
 import { PetDocument } from '../pets/schemas/pet.schema';
 import { UserDocument } from '../users/schemas/user.schema';
 import { NotificationsService } from '../notifications/notifications.service';
+import { PetSitterDocument } from '../pet-sitters/schemas/pet-sitter.schema';
 export declare class BookingsService {
     private readonly bookingModel;
     private readonly petModel;
     private readonly userModel;
+    private readonly petSitterModel;
     private readonly notificationsService;
-    constructor(bookingModel: Model<BookingDocument>, petModel: Model<PetDocument>, userModel: Model<UserDocument>, notificationsService: NotificationsService);
+    constructor(bookingModel: Model<BookingDocument>, petModel: Model<PetDocument>, userModel: Model<UserDocument>, petSitterModel: Model<PetSitterDocument>, notificationsService: NotificationsService);
     private isActiveProvider;
     private assertActiveProvider;
     create(userId: string, createBookingDto: CreateBookingDto): Promise<BookingDocument>;

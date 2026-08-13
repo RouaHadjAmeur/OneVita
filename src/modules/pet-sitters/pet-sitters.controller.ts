@@ -31,8 +31,16 @@ export class PetSittersController {
   }
 
   @Get()
-  async findAll(@Query('excludeUserId') excludeUserId?: string): Promise<User[]> {
-    return this.petSittersService.findAll(excludeUserId);
+  async findAll(
+    @Query('excludeUserId') excludeUserId?: string,
+    @Query('latitude') latitude?: string,
+    @Query('longitude') longitude?: string,
+  ): Promise<User[]> {
+    return this.petSittersService.findAll(
+      excludeUserId,
+      latitude == null ? undefined : Number(latitude),
+      longitude == null ? undefined : Number(longitude),
+    );
   }
 
   @Get(':id')
@@ -44,8 +52,12 @@ export class PetSittersController {
   @UseGuards(JwtAuthGuard)
   async update(
     @Param('id') id: string,
+    @CurrentUser() currentUser: User,
     @Body() updateSitterDto: UpdateSitterDto,
   ): Promise<User> {
+    if (String(currentUser._id ?? currentUser.id) !== id) {
+      throw new Error('You can only update your own sitter profile');
+    }
     return this.petSittersService.update(id, updateSitterDto);
   }
 

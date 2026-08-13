@@ -1,5 +1,5 @@
 export declare class UpdateBookingDto {
-    status?: 'pending' | 'accepted' | 'rejected' | 'completed' | 'cancelled';
+    status?: 'pending' | 'reschedule_pending' | 'accepted' | 'rejected' | 'completed' | 'cancelled';
     rejectionReason?: string;
     cancellationReason?: string;
     providerNote?: string;

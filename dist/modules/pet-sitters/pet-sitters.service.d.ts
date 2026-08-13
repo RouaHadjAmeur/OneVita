@@ -12,7 +12,8 @@ export declare class PetSittersService {
     private readonly mailService;
     constructor(userModel: Model<UserDocument>, petSitterModel: Model<PetSitterDocument>, usersService: UsersService, mailService: MailService);
     create(createSitterDto: CreateSitterDto): Promise<UserDocument>;
-    findAll(excludeUserId?: string): Promise<UserDocument[]>;
+    findAll(excludeUserId?: string, latitude?: number, longitude?: number): Promise<UserDocument[]>;
+    private distanceKm;
     findOne(id: string): Promise<UserDocument>;
     findByEmail(email: string): Promise<UserDocument | null>;
     update(id: string, updateSitterDto: UpdateSitterDto): Promise<UserDocument>;

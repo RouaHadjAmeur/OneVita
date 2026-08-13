@@ -27,13 +27,16 @@ let PetSittersController = class PetSittersController {
     async create(createSitterDto) {
         return this.petSittersService.create(createSitterDto);
     }
-    async findAll(excludeUserId) {
-        return this.petSittersService.findAll(excludeUserId);
+    async findAll(excludeUserId, latitude, longitude) {
+        return this.petSittersService.findAll(excludeUserId, latitude == null ? undefined : Number(latitude), longitude == null ? undefined : Number(longitude));
     }
     async findOne(id) {
         return this.petSittersService.findOne(id);
     }
-    async update(id, updateSitterDto) {
+    async update(id, currentUser, updateSitterDto) {
+        if (String(currentUser._id ?? currentUser.id) !== id) {
+            throw new Error('You can only update your own sitter profile');
+        }
         return this.petSittersService.update(id, updateSitterDto);
     }
     async remove(id) {
@@ -58,8 +61,10 @@ __decorate([
 __decorate([
     (0, common_1.Get)(),
     __param(0, (0, common_1.Query)('excludeUserId')),
+    __param(1, (0, common_1.Query)('latitude')),
+    __param(2, (0, common_1.Query)('longitude')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, String, String]),
     __metadata("design:returntype", Promise)
 ], PetSittersController.prototype, "findAll", null);
 __decorate([
@@ -73,9 +78,11 @@ __decorate([
     (0, common_1.Put)(':id'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     __param(0, (0, common_1.Param)('id')),
-    __param(1, (0, common_1.Body)()),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
+    __param(2, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, update_sitter_dto_1.UpdateSitterDto]),
+    __metadata("design:paramtypes", [String, user_schema_1.User,
+        update_sitter_dto_1.UpdateSitterDto]),
     __metadata("design:returntype", Promise)
 ], PetSittersController.prototype, "update", null);
 __decorate([

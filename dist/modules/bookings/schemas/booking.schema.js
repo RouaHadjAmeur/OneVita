@@ -53,8 +53,22 @@ __decorate([
 ], Booking.prototype, "price", void 0);
 __decorate([
     (0, mongoose_1.Prop)({
+        enum: ['unpaid', 'paid', 'refunded', 'not_required'],
+        default: 'unpaid',
+    }),
+    __metadata("design:type", String)
+], Booking.prototype, "paymentStatus", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({
         type: String,
-        enum: ['pending', 'accepted', 'rejected', 'completed', 'cancelled'],
+        enum: [
+            'pending',
+            'reschedule_pending',
+            'accepted',
+            'rejected',
+            'completed',
+            'cancelled',
+        ],
         default: 'pending',
     }),
     __metadata("design:type", String)
@@ -79,6 +93,14 @@ __decorate([
     (0, mongoose_1.Prop)({ type: String, maxlength: 2000 }),
     __metadata("design:type", String)
 ], Booking.prototype, "providerNote", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ type: Date }),
+    __metadata("design:type", Date)
+], Booking.prototype, "rescheduleProposedAt", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ type: Date }),
+    __metadata("design:type", Date)
+], Booking.prototype, "ownerRespondedAt", void 0);
 exports.Booking = Booking = __decorate([
     (0, mongoose_1.Schema)({ timestamps: true })
 ], Booking);

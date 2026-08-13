@@ -13,6 +13,8 @@ export declare class PetSitter {
     latitude?: number;
     longitude?: number;
     bio?: string;
+    workdayStartHour?: number;
+    workdayEndHour?: number;
 }
 export declare const PetSitterSchema: import("mongoose").Schema<PetSitter, import("mongoose").Model<PetSitter, any, any, any, Document<unknown, any, PetSitter, any, {}> & PetSitter & Required<{
     _id: Types.ObjectId;

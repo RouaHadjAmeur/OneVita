@@ -15,7 +15,14 @@ class UpdateBookingDto {
 }
 exports.UpdateBookingDto = UpdateBookingDto;
 __decorate([
-    (0, class_validator_1.IsEnum)(['pending', 'accepted', 'rejected', 'completed', 'cancelled']),
+    (0, class_validator_1.IsEnum)([
+        'pending',
+        'reschedule_pending',
+        'accepted',
+        'rejected',
+        'completed',
+        'cancelled',
+    ]),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], UpdateBookingDto.prototype, "status", void 0);

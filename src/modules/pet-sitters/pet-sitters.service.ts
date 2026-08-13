@@ -76,6 +76,8 @@ export class PetSittersService {
       latitude: createSitterDto.latitude,
       longitude: createSitterDto.longitude,
       bio: createSitterDto.bio,
+      workdayStartHour: createSitterDto.workdayStartHour ?? 8,
+      workdayEndHour: createSitterDto.workdayEndHour ?? 18,
     });
 
     await petSitter.save();
@@ -83,7 +85,11 @@ export class PetSittersService {
     return createdUser;
   }
 
-  async findAll(excludeUserId?: string): Promise<UserDocument[]> {
+  async findAll(
+    excludeUserId?: string,
+    latitude?: number,
+    longitude?: number,
+  ): Promise<UserDocument[]> {
     const filter =
       excludeUserId && Types.ObjectId.isValid(excludeUserId)
         ? { user: { $ne: new Types.ObjectId(excludeUserId) } }
@@ -92,7 +98,7 @@ export class PetSittersService {
       .find(filter)
       .populate('user')
       .exec();
-    return sitters.map((sitter) => {
+    const result = sitters.map((sitter) => {
       const user = sitter.user as unknown as UserDocument;
       if (!user || !('_id' in user)) {
         throw new NotFoundException('User not populated correctly');
@@ -104,8 +110,49 @@ export class PetSittersService {
       if (sitter.longitude !== undefined) {
         (user as any).longitude = sitter.longitude;
       }
+      (user as any).sitterAddress = sitter.sitterAddress;
+      (user as any).hourlyRate = sitter.hourlyRate;
+      (user as any).services = sitter.services;
+      (user as any).yearsOfExperience = sitter.yearsOfExperience;
+      (user as any).availableWeekends = sitter.availableWeekends;
+      (user as any).canHostPets = sitter.canHostPets;
+      (user as any).availability = sitter.availability;
+      (user as any).bio = sitter.bio;
+      (user as any).workdayStartHour = sitter.workdayStartHour;
+      (user as any).workdayEndHour = sitter.workdayEndHour;
+      if (
+        Number.isFinite(latitude) &&
+        Number.isFinite(longitude) &&
+        sitter.latitude != null &&
+        sitter.longitude != null
+      ) {
+        (user as any).distanceKm = this.distanceKm(
+          latitude!,
+          longitude!,
+          sitter.latitude,
+          sitter.longitude,
+        );
+      }
       return user;
     });
+    return result.sort(
+      (a: any, b: any) =>
+        (a.distanceKm ?? Number.MAX_VALUE) - (b.distanceKm ?? Number.MAX_VALUE),
+    );
+  }
+
+  private distanceKm(lat1: number, lon1: number, lat2: number, lon2: number) {
+    const radians = (value: number) => (value * Math.PI) / 180;
+    const dLat = radians(lat2 - lat1);
+    const dLon = radians(lon2 - lon1);
+    const a =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos(radians(lat1)) *
+        Math.cos(radians(lat2)) *
+        Math.sin(dLon / 2) ** 2;
+    return Number(
+      (6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))).toFixed(1),
+    );
   }
 
   async findOne(id: string): Promise<UserDocument> {
@@ -129,6 +176,8 @@ export class PetSittersService {
     (user as any).canHostPets = sitter.canHostPets;
     (user as any).availability = sitter.availability;
     (user as any).bio = sitter.bio;
+    (user as any).workdayStartHour = sitter.workdayStartHour;
+    (user as any).workdayEndHour = sitter.workdayEndHour;
     (user as any).latitude = sitter.latitude;
     (user as any).longitude = sitter.longitude;
     return user;
@@ -197,6 +246,12 @@ export class PetSittersService {
     if (updateSitterDto.bio !== undefined) {
       sitterFields.bio = updateSitterDto.bio;
     }
+    if (updateSitterDto.workdayStartHour !== undefined) {
+      sitterFields.workdayStartHour = updateSitterDto.workdayStartHour;
+    }
+    if (updateSitterDto.workdayEndHour !== undefined) {
+      sitterFields.workdayEndHour = updateSitterDto.workdayEndHour;
+    }
 
     // Convert availability strings to Date objects if provided
     if (
@@ -240,6 +295,8 @@ export class PetSittersService {
     (user as any).canHostPets = sitter.canHostPets;
     (user as any).availability = sitter.availability;
     (user as any).bio = sitter.bio;
+    (user as any).workdayStartHour = sitter.workdayStartHour;
+    (user as any).workdayEndHour = sitter.workdayEndHour;
     (user as any).latitude = sitter.latitude;
     (user as any).longitude = sitter.longitude;
     return user;
@@ -298,6 +355,8 @@ export class PetSittersService {
         latitude: sitterData.latitude,
         longitude: sitterData.longitude,
         bio: sitterData.bio,
+        workdayStartHour: sitterData.workdayStartHour,
+        workdayEndHour: sitterData.workdayEndHour,
       };
       return this.update(userId, updateData);
     } else {
@@ -314,6 +373,8 @@ export class PetSittersService {
         latitude: sitterData.latitude,
         longitude: sitterData.longitude,
         bio: sitterData.bio,
+        workdayStartHour: sitterData.workdayStartHour ?? 8,
+        workdayEndHour: sitterData.workdayEndHour ?? 18,
       });
 
       petSitter = await sitterRecord.save();
@@ -328,7 +389,9 @@ export class PetSittersService {
         })
         .exec();
 
-      console.log(`[Sitter Conversion] User ${userId} converted to sitter role`);
+      console.log(
+        `[Sitter Conversion] User ${userId} converted to sitter role`,
+      );
     }
 
     // Return the user with updated role

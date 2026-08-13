@@ -15,6 +15,7 @@ const booking_schema_1 = require("./schemas/booking.schema");
 const user_schema_1 = require("../users/schemas/user.schema");
 const pet_schema_1 = require("../pets/schemas/pet.schema");
 const notifications_module_1 = require("../notifications/notifications.module");
+const pet_sitter_schema_1 = require("../pet-sitters/schemas/pet-sitter.schema");
 let BookingsModule = class BookingsModule {
 };
 exports.BookingsModule = BookingsModule;
@@ -25,6 +26,7 @@ exports.BookingsModule = BookingsModule = __decorate([
                 { name: booking_schema_1.Booking.name, schema: booking_schema_1.BookingSchema },
                 { name: user_schema_1.User.name, schema: user_schema_1.UserSchema },
                 { name: pet_schema_1.Pet.name, schema: pet_schema_1.PetSchema },
+                { name: pet_sitter_schema_1.PetSitter.name, schema: pet_sitter_schema_1.PetSitterSchema },
             ]),
             notifications_module_1.NotificationsModule,
         ],

@@ -10,12 +10,15 @@ export declare class Booking {
     dateTime: Date;
     duration?: number;
     price?: number;
+    paymentStatus?: string;
     status: string;
     rejectionReason?: string;
     completedAt?: Date;
     cancelledAt?: Date;
     cancellationReason?: string;
     providerNote?: string;
+    rescheduleProposedAt?: Date;
+    ownerRespondedAt?: Date;
 }
 export declare const BookingSchema: import("mongoose").Schema<Booking, import("mongoose").Model<Booking, any, any, any, Document<unknown, any, Booking, any, {}> & Booking & {
     _id: Types.ObjectId;

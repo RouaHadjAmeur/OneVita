@@ -54,6 +54,18 @@ __decorate([
 __decorate([
     (0, mongoose_1.Prop)(),
     __metadata("design:type", String)
+], Veterinarian.prototype, "education", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ type: [String], default: [] }),
+    __metadata("design:type", Array)
+], Veterinarian.prototype, "languages", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ min: 0 }),
+    __metadata("design:type", Number)
+], Veterinarian.prototype, "consultationFee", void 0);
+__decorate([
+    (0, mongoose_1.Prop)(),
+    __metadata("design:type", String)
 ], Veterinarian.prototype, "licenseImageUrl", void 0);
 __decorate([
     (0, mongoose_1.Prop)(),

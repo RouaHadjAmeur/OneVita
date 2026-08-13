@@ -12,4 +12,6 @@ export declare class UpdateSitterDto {
     latitude?: number;
     longitude?: number;
     bio?: string;
+    workdayStartHour?: number;
+    workdayEndHour?: number;
 }

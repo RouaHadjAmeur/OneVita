@@ -44,6 +44,12 @@ export class PetSitter {
 
   @Prop()
   bio?: string;
+
+  @Prop({ min: 0, max: 23, default: 8 })
+  workdayStartHour?: number;
+
+  @Prop({ min: 1, max: 24, default: 18 })
+  workdayEndHour?: number;
 }
 
 export const PetSitterSchema = SchemaFactory.createForClass(PetSitter);
