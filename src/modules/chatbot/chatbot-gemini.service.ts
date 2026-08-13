@@ -248,8 +248,9 @@ export class ChatbotGeminiService {
           .get<string>('AI_MODEL')
           ?.trim()
           .replace(/^models\//, '');
+        const retiredForNewAccounts = /gemini-2\.5-/i;
 
-        if (configuredModel) {
+        if (configuredModel && !retiredForNewAccounts.test(configuredModel)) {
           const configured = models.find(
             (model) => model.name.replace(/^models\//, '') === configuredModel,
           );
@@ -266,9 +267,10 @@ export class ChatbotGeminiService {
         }
         // Prioritize Flash models (more generous free tier quotas)
         const preferredNames = [
-          'gemini-2.5-flash', // Newest flash model with best quotas
-          'gemini-2.0-flash', // Alternative flash model
           'gemini-flash-latest',
+          'gemini-3.5-flash',
+          'gemini-3-flash',
+          'gemini-2.0-flash',
         ];
 
         for (const preferredName of preferredNames) {
@@ -286,8 +288,12 @@ export class ChatbotGeminiService {
         }
 
         // Prefer any remaining Flash model before an arbitrary compatible model.
+        const usableModels = models.filter(
+          (model) => !retiredForNewAccounts.test(model.name),
+        );
         const fallbackModel =
-          models.find((model) => /flash/i.test(model.name)) ?? models[0];
+          usableModels.find((model) => /flash/i.test(model.name)) ??
+          usableModels[0];
         if (fallbackModel) {
           const modelName =
             fallbackModel.name.split('/').pop() || fallbackModel.name;

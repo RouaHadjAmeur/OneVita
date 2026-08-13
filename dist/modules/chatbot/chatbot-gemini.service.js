@@ -125,7 +125,8 @@ let ChatbotGeminiService = ChatbotGeminiService_1 = class ChatbotGeminiService {
                     .get('AI_MODEL')
                     ?.trim()
                     .replace(/^models\//, '');
-                if (configuredModel) {
+                const retiredForNewAccounts = /gemini-2\.5-/i;
+                if (configuredModel && !retiredForNewAccounts.test(configuredModel)) {
                     const configured = models.find((model) => model.name.replace(/^models\//, '') === configuredModel);
                     if (configured) {
                         this.cachedModelName = configuredModel;
@@ -135,9 +136,10 @@ let ChatbotGeminiService = ChatbotGeminiService_1 = class ChatbotGeminiService {
                     this.logger.warn(`Configured AI_MODEL "${configuredModel}" is unavailable; selecting an available Flash model`);
                 }
                 const preferredNames = [
-                    'gemini-2.5-flash',
-                    'gemini-2.0-flash',
                     'gemini-flash-latest',
+                    'gemini-3.5-flash',
+                    'gemini-3-flash',
+                    'gemini-2.0-flash',
                 ];
                 for (const preferredName of preferredNames) {
                     const model = models.find((m) => m.name.includes(preferredName) ||
@@ -149,7 +151,9 @@ let ChatbotGeminiService = ChatbotGeminiService_1 = class ChatbotGeminiService {
                         return modelName;
                     }
                 }
-                const fallbackModel = models.find((model) => /flash/i.test(model.name)) ?? models[0];
+                const usableModels = models.filter((model) => !retiredForNewAccounts.test(model.name));
+                const fallbackModel = usableModels.find((model) => /flash/i.test(model.name)) ??
+                    usableModels[0];
                 if (fallbackModel) {
                     const modelName = fallbackModel.name.split('/').pop() || fallbackModel.name;
                     this.cachedModelName = modelName;
