@@ -86,7 +86,10 @@ function evaluatePixel(s){return{turbidity:[s.TMEAN],chlorophyllA:[s.CHLAMEAN],s
           bounds: { geometry: { type: 'Polygon', coordinates: [[[longitude-delta,latitude-delta],[longitude+delta,latitude-delta],[longitude+delta,latitude+delta],[longitude-delta,latitude+delta],[longitude-delta,latitude-delta]]] }, properties: { crs: 'http://www.opengis.net/def/crs/EPSG/0/4326' } },
           data: [{ type: `byoc-${this.collectionId}`, dataFilter: { mosaickingOrder: 'mostRecent' } }],
         },
-        aggregation: { timeRange: { from: from.toISOString(), to: to.toISOString() }, aggregationInterval: { of: 'P10D' }, evalscript, resx: 100, resy: 100 },
+        // EPSG:4326 resolution values are expressed in degrees. 0.0009° is
+        // approximately 100 m north/south and remains comfortably within the
+        // collection's supported resolution range.
+        aggregation: { timeRange: { from: from.toISOString(), to: to.toISOString() }, aggregationInterval: { of: 'P10D' }, evalscript, resx: 0.0009, resy: 0.0009 },
       }, { timeout: 30_000, headers: { Authorization: `Bearer ${token}` } });
       return data;
     } catch (error) {
