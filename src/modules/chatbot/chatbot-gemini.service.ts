@@ -418,7 +418,10 @@ export class ChatbotGeminiService {
           }
         }
 
-        const text = candidate.content?.parts?.[0]?.text;
+        const text = candidate.content?.parts
+          ?.map((part) => part.text || '')
+          .join('')
+          .trim();
 
         // Check for finish reason
         if (candidate.finishReason && candidate.finishReason !== 'STOP') {
@@ -657,7 +660,10 @@ export class ChatbotGeminiService {
         }
 
         const candidate = response.data.candidates[0];
-        const text = candidate.content?.parts?.[0]?.text;
+        const text = candidate.content?.parts
+          ?.map((part) => part.text || '')
+          .join('')
+          .trim();
 
         if (!text || text.trim().length === 0) {
           throw new Error('Empty response from Gemini Vision API');
@@ -874,7 +880,10 @@ export class ChatbotGeminiService {
         }
 
         const candidate = response.data.candidates[0];
-        const text = candidate.content?.parts?.[0]?.text;
+        const text = candidate.content?.parts
+          ?.map((part) => part.text || '')
+          .join('')
+          .trim();
 
         if (!text || text.trim().length === 0) {
           throw new Error('Empty response from Gemini Vision API');

@@ -140,8 +140,9 @@ export class AuthService {
       return { message: 'Registration successful' };
     }
 
-    // DEV: log verification code to console when email sending fails
-    console.log(`[DEV] Verification code for ${normalized}: ${verificationCode}`);
+    if (this.shouldLogVerificationCodes()) {
+      console.log(`[TEST] Verification code for ${normalized}: ${verificationCode}`);
+    }
 
     // best-effort email sending; log error but don't block registration
     try {
@@ -290,9 +291,8 @@ export class AuthService {
       verificationCodeExpires: new Date(Date.now() + 10 * 60 * 1000),
     } as Partial<CreateUserDto>);
 
-    // DEV: log verification code to console when email sending fails
-    if (process.env.NODE_ENV !== 'production') {
-      console.log(`[DEV] Resend verification code for ${user.email}: ${newCode}`);
+    if (this.shouldLogVerificationCodes()) {
+      console.log(`[TEST] Resend verification code for ${user.email}: ${newCode}`);
     }
 
     try {
@@ -306,6 +306,13 @@ export class AuthService {
     }
 
     return { message: 'New verification code sent to your email' };
+  }
+
+  private shouldLogVerificationCodes(): boolean {
+    return (
+      process.env.NODE_ENV !== 'production' ||
+      process.env.LOG_VERIFICATION_CODES === 'true'
+    );
   }
 
   async getProfile(

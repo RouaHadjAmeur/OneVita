@@ -402,7 +402,7 @@ User Question: ${userMessage}`;
           petPhotos,
           {
             temperature: 0.7,
-            maxTokens: 500, // Reduced for shorter responses
+            maxTokens: 1200,
           },
         );
       } else {
@@ -421,7 +421,7 @@ User Question: ${userMessage}`;
 
         response = await this.chatbotGeminiService.generateText(prompt, {
           temperature: 0.25,
-          maxTokens: 500, // Reduced for shorter responses
+          maxTokens: 1200,
         });
       }
 
@@ -586,7 +586,7 @@ USER'S PETS INFORMATION:`;
           userMessage,
         );
         const recentHistory = this.buildConversationContext(history.slice(-6));
-        return `${this.buildModeSafetyInstruction('global')}\n\n${globalContext}\n\nUSER QUESTION: ${userMessage}${recentHistory}\n\nUse only the relevant domain context. Connect domains when useful, but do not mention unrelated private records.`;
+        return `${this.buildModeSafetyInstruction('global')}\n\n${globalContext}\n\nUSER QUESTION: ${userMessage}${recentHistory}\n\nGive a genuinely useful answer, not merely a disclaimer. Start with a direct answer, then explain the likely possibilities or relevant facts, practical low-risk next steps, warning signs, and which professional or authority to contact if needed. Ask focused follow-up questions when the answer depends on missing symptoms, duration, exposure, species, age, or location. Use only relevant private context and never mention unrelated records. For vaccination questions, list what is recorded, distinguish "not recorded" from "confirmed missing," and never infer that a vaccine is missing without a complete dated vaccination record and the applicable local schedule. Do not bring up unrelated conditions. Write clean plain text without Markdown symbols. Do not repeat the safety disclaimer throughout the answer.`;
       }
       if (mode !== 'pet') {
         const recentHistory = this.buildConversationContext(history.slice(-6));
