@@ -429,7 +429,6 @@ export class ChatbotGeminiService {
 
           if (
             candidate.finishReason === 'MAX_TOKENS' &&
-            (!text || text.trim().length === 0) &&
             attempt < maxRetries - 1
           ) {
             const thoughtsTokens =
@@ -439,7 +438,7 @@ export class ChatbotGeminiService {
               8000,
             );
             this.logger.log(
-              `🔄 MAX_TOKENS hit with no output. Increasing maxOutputTokens from ${maxTokens} to ${newMaxTokens} for retry`,
+              `🔄 Incomplete MAX_TOKENS response. Increasing maxOutputTokens from ${maxTokens} to ${newMaxTokens} and regenerating`,
             );
             requestBody.generationConfig = {
               ...requestBody.generationConfig,
@@ -447,6 +446,12 @@ export class ChatbotGeminiService {
             };
             maxTokens = newMaxTokens;
             continue;
+          }
+
+          if (candidate.finishReason === 'MAX_TOKENS') {
+            throw new Error(
+              'Gemini response remained incomplete after token-limit retries',
+            );
           }
         }
 

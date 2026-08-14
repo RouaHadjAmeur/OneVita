@@ -402,7 +402,7 @@ User Question: ${userMessage}`;
           petPhotos,
           {
             temperature: 0.7,
-            maxTokens: 1200,
+            maxTokens: 2000,
           },
         );
       } else {
@@ -421,7 +421,7 @@ User Question: ${userMessage}`;
 
         response = await this.chatbotGeminiService.generateText(prompt, {
           temperature: 0.25,
-          maxTokens: 1200,
+          maxTokens: 2000,
         });
       }
 
@@ -668,11 +668,16 @@ USER'S PETS INFORMATION:`;
             ? 'responsible local authority'
             : 'appropriate qualified professional';
     const cleaned = response.trim().slice(0, 6000);
-    if (
-      /not a diagnosis|educational information|cannot diagnose/i.test(cleaned)
-    )
-      return cleaned;
-    return `${cleaned}\n\nThis is educational AI guidance, not a diagnosis or official determination. Consult a ${professional} when safety or health is involved.`;
+    const highRiskSubject =
+      /diagnos|treatment|medication|medicine|dosage|dose|poison|toxin|emergency|urgent|severe symptom/i.test(
+        cleaned,
+      );
+    const alreadySafe =
+      /not a diagnosis|cannot diagnose|consult|contact|see (a|your)|veterinarian|doctor|healthcare professional|local authority|emergency service/i.test(
+        cleaned,
+      );
+    if (!highRiskSubject || alreadySafe) return cleaned;
+    return `${cleaned}\n\nPlease confirm health or safety decisions with a ${professional}.`;
   }
 
   private async saveExchange(

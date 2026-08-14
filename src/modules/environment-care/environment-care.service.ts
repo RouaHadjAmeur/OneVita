@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import axios from 'axios';
 import { Model } from 'mongoose';
@@ -44,23 +44,25 @@ export class EnvironmentCareService {
     const description = String(body.description || '').trim();
     if (description.length < 10) throw new BadRequestException('Please provide a useful description');
     const isVideo = media.mimetype.startsWith('video/');
-    let mediaUrl = '';
-    let mediaUploadStatus = 'uploaded';
+    let mediaUrl: string;
     try {
       const upload = isVideo
         ? await this.cloudinary.uploadAudio(media, 'environment-reports')
         : await this.cloudinary.uploadImage(media, 'environment-reports');
+      if (!upload.secure_url) throw new Error('Cloudinary returned no media URL');
       mediaUrl = upload.secure_url;
     } catch (error) {
-      mediaUploadStatus = 'pending';
-      console.error('Environment report media upload deferred:', error);
+      console.error('Environment report evidence upload failed:', error);
+      throw new ServiceUnavailableException(
+        'The evidence photo could not be uploaded. Please retry before submitting the report.',
+      );
     }
     const report = await this.environmentReports.create({
       reporter: userId,
       category: body.category,
       description,
       mediaUrl,
-      mediaUploadStatus,
+      mediaUploadStatus: 'uploaded',
       mediaType: isVideo ? 'video' : 'image',
       latitude,
       longitude,
