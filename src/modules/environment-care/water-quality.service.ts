@@ -78,8 +78,8 @@ export class WaterQualityService {
     const to = new Date();
     const from = new Date(to.getTime() - 70 * 86_400_000);
     const evalscript = `//VERSION=3
-function setup(){return{input:["TMEAN","CHLAMEAN","TSMMEAN","TSI","FCBPROB","NOBS","dataMask"],output:[{id:"water",bands:["turbidity","chlorophyllA","suspendedMatter","trophicStateIndex","cyanobacteriaProbability","observations"],sampleType:"FLOAT32"},{id:"dataMask",bands:1}]};}
-function evaluatePixel(s){return{water:[s.TMEAN,s.CHLAMEAN,s.TSMMEAN,s.TSI,s.FCBPROB,s.NOBS],dataMask:[s.dataMask]};}`;
+function setup(){return{input:["TMEAN","CHLAMEAN","TSMMEAN","TSI","FCBPROB","NOBS","dataMask"],output:[{id:"turbidity",bands:1,sampleType:"FLOAT32"},{id:"chlorophyllA",bands:1,sampleType:"FLOAT32"},{id:"suspendedMatter",bands:1,sampleType:"FLOAT32"},{id:"trophicStateIndex",bands:1,sampleType:"FLOAT32"},{id:"cyanobacteriaProbability",bands:1,sampleType:"FLOAT32"},{id:"observations",bands:1,sampleType:"FLOAT32"},{id:"dataMask",bands:1}]};}
+function evaluatePixel(s){return{turbidity:[s.TMEAN],chlorophyllA:[s.CHLAMEAN],suspendedMatter:[s.TSMMEAN],trophicStateIndex:[s.TSI],cyanobacteriaProbability:[s.FCBPROB],observations:[s.NOBS],dataMask:[s.dataMask]};}`;
     try {
       const { data } = await axios.post('https://sh.dataspace.copernicus.eu/api/v1/statistics', {
         input: {
@@ -101,9 +101,10 @@ function evaluatePixel(s){return{water:[s.TMEAN,s.CHLAMEAN,s.TSMMEAN,s.TSI,s.FCB
   private latestIndicators(payload: any) {
     const rows = Array.isArray(payload?.data) ? [...payload.data].reverse() : [];
     for (const row of rows) {
-      const bands = row?.outputs?.water?.bands || {};
       const mean = (name: string) => {
-        const number = Number(bands?.[name]?.stats?.mean);
+        const bands = row?.outputs?.[name]?.bands || {};
+        const firstBand = bands.B0 ?? Object.values(bands)[0];
+        const number = Number((firstBand as any)?.stats?.mean);
         return Number.isFinite(number) ? Math.round(number * 100) / 100 : null;
       };
       const observations = mean('observations');
