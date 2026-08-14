@@ -8,6 +8,8 @@ import {
 } from '../human-health/schemas/human-health-profile.schema';
 import { EnvironmentCareController } from './environment-care.controller';
 import { EnvironmentCareService } from './environment-care.service';
+import { WaterQualityController } from './water-quality.controller';
+import { WaterQualityService } from './water-quality.service';
 import { CloudinaryModule } from '../cloudinary/cloudinary.module';
 import {
   EnvironmentReport,
@@ -27,7 +29,7 @@ import {
     ]),
     CloudinaryModule,
   ],
-  controllers: [EnvironmentCareController],
-  providers: [EnvironmentCareService],
+  controllers: [EnvironmentCareController, WaterQualityController],
+  providers: [EnvironmentCareService, WaterQualityService],
 })
 export class EnvironmentCareModule {}
