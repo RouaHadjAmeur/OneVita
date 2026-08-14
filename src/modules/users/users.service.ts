@@ -80,6 +80,8 @@ export class UsersService {
       phoneNumber?: string;
       country?: string;
       city?: string;
+      latitude?: number;
+      longitude?: number;
       hasPhoto?: boolean;
       hasPets?: boolean;
     }>,
@@ -93,6 +95,8 @@ export class UsersService {
         payload.phoneNumber = update.phoneNumber;
       if (update.country !== undefined) payload.country = update.country;
       if (update.city !== undefined) payload.city = update.city;
+      if (update.latitude !== undefined) payload.latitude = update.latitude;
+      if (update.longitude !== undefined) payload.longitude = update.longitude;
       if (update.hasPhoto !== undefined) payload.hasPhoto = update.hasPhoto;
       if (update.hasPets !== undefined) payload.hasPets = update.hasPets;
 
