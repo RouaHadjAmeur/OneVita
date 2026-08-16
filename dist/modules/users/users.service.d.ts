@@ -24,6 +24,8 @@ export declare class UsersService {
         phoneNumber?: string;
         country?: string;
         city?: string;
+        latitude?: number;
+        longitude?: number;
         hasPhoto?: boolean;
         hasPets?: boolean;
     }>, file?: any): Promise<UserDocument>;

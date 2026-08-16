@@ -128,7 +128,9 @@ let AuthService = class AuthService {
             console.log(`[DEV] Auto-verified user ${normalized} — email verification skipped in development`);
             return { message: 'Registration successful' };
         }
-        console.log(`[DEV] Verification code for ${normalized}: ${verificationCode}`);
+        if (this.shouldLogVerificationCodes()) {
+            console.log(`[TEST] Verification code for ${normalized}: ${verificationCode}`);
+        }
         try {
             await this.mailService.sendVerificationCode(normalized, verificationCode);
         }
@@ -231,8 +233,8 @@ let AuthService = class AuthService {
             verificationCode: newCode,
             verificationCodeExpires: new Date(Date.now() + 10 * 60 * 1000),
         });
-        if (process.env.NODE_ENV !== 'production') {
-            console.log(`[DEV] Resend verification code for ${user.email}: ${newCode}`);
+        if (this.shouldLogVerificationCodes()) {
+            console.log(`[TEST] Resend verification code for ${user.email}: ${newCode}`);
         }
         try {
             await this.mailService.sendVerificationCode(user.email, newCode);
@@ -246,6 +248,10 @@ let AuthService = class AuthService {
             }
         }
         return { message: 'New verification code sent to your email' };
+    }
+    shouldLogVerificationCodes() {
+        return (process.env.NODE_ENV !== 'production' ||
+            process.env.LOG_VERIFICATION_CODES === 'true');
     }
     async getProfile(userId) {
         const user = await this.usersService.findById(userId);

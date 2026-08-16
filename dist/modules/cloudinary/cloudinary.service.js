@@ -11,15 +11,23 @@ const common_1 = require("@nestjs/common");
 const cloudinary_1 = require("cloudinary");
 const toStream = require("buffer-to-stream");
 let CloudinaryService = class CloudinaryService {
-    async uploadImage(file, folder) {
-        if (!process.env.CLOUDINARY_CLOUD_NAME ||
-            !process.env.CLOUDINARY_API_KEY ||
-            !process.env.CLOUDINARY_API_SECRET) {
+    configure() {
+        const cloudName = process.env.CLOUDINARY_CLOUD_NAME?.trim();
+        const apiKey = process.env.CLOUDINARY_API_KEY?.trim();
+        const apiSecret = process.env.CLOUDINARY_API_SECRET?.trim();
+        if (!cloudName || !apiKey || !apiSecret) {
             throw new Error('Cloudinary configuration missing. Please set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET');
         }
+        cloudinary_1.v2.config({ cloud_name: cloudName, api_key: apiKey, api_secret: apiSecret });
+    }
+    async uploadImage(file, folder) {
+        this.configure();
+        if (!file?.buffer?.length)
+            throw new Error('The uploaded image is empty');
         return new Promise((resolve, reject) => {
             const upload = cloudinary_1.v2.uploader.upload_stream({
-                resource_type: 'image',
+                folder,
+                resource_type: 'auto',
             }, (error, result) => {
                 if (error) {
                     console.error('Cloudinary upload error:', error);
@@ -31,11 +39,7 @@ let CloudinaryService = class CloudinaryService {
         });
     }
     async uploadAudio(file, folder) {
-        if (!process.env.CLOUDINARY_CLOUD_NAME ||
-            !process.env.CLOUDINARY_API_KEY ||
-            !process.env.CLOUDINARY_API_SECRET) {
-            throw new Error('Cloudinary configuration missing. Please set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET');
-        }
+        this.configure();
         return new Promise((resolve, reject) => {
             const upload = cloudinary_1.v2.uploader.upload_stream({
                 folder: folder,
@@ -51,11 +55,7 @@ let CloudinaryService = class CloudinaryService {
         });
     }
     async uploadImageFromBase64(base64String, folder) {
-        if (!process.env.CLOUDINARY_CLOUD_NAME ||
-            !process.env.CLOUDINARY_API_KEY ||
-            !process.env.CLOUDINARY_API_SECRET) {
-            throw new Error('Cloudinary configuration missing. Please set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET');
-        }
+        this.configure();
         const base64Data = base64String.includes(',')
             ? base64String.split(',')[1]
             : base64String;
@@ -74,7 +74,14 @@ let CloudinaryService = class CloudinaryService {
         });
     }
     async deleteImage(publicId) {
+        this.configure();
         await cloudinary_1.v2.uploader.destroy(publicId);
+    }
+    async deleteByUrl(url) {
+        const match = url.match(/\/upload\/(?:v\d+\/)?(.+?)(?:\.[a-zA-Z0-9]+)?$/);
+        if (!match?.[1])
+            return;
+        await this.deleteImage(decodeURIComponent(match[1]));
     }
 };
 exports.CloudinaryService = CloudinaryService;

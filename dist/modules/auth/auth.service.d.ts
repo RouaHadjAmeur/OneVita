@@ -49,6 +49,7 @@ export declare class AuthService {
     resendVerificationCode(email: string): Promise<{
         message: string;
     }>;
+    private shouldLogVerificationCodes;
     getProfile(userId: string): Promise<Partial<UserDocument> & {
         subscription?: any;
     }>;

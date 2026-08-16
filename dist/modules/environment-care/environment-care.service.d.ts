@@ -42,6 +42,25 @@ export declare class EnvironmentCareService {
         authorityNote: any;
         createdAt: any;
     }[]>;
+    updateOwnReport(userId: string, id: string, body: any): Promise<{
+        id: string;
+        category: any;
+        description: any;
+        mediaUrl: any;
+        mediaUploadStatus: any;
+        mediaType: any;
+        latitude: number;
+        longitude: number;
+        address: any;
+        status: any;
+        severity: any;
+        authorityNote: any;
+        createdAt: any;
+    }>;
+    deleteOwnReport(userId: string, id: string): Promise<{
+        deleted: boolean;
+        id: string;
+    }>;
     updateReportStatus(role: string, id: string, body: any): Promise<{
         id: string;
         category: any;

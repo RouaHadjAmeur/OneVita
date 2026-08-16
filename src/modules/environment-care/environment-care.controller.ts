@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, Request, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Request, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -28,6 +28,20 @@ export class EnvironmentCareController {
   @Get('reports')
   reports(@Query('mine') mine: string, @CurrentUser() user: User) {
     return this.service.getReports(mine === 'true' ? String(user._id) : undefined);
+  }
+
+  @Patch('reports/:id')
+  updateOwnReport(
+    @CurrentUser() user: User,
+    @Param('id') id: string,
+    @Body() body: any,
+  ) {
+    return this.service.updateOwnReport(String(user._id), id, body);
+  }
+
+  @Delete('reports/:id')
+  deleteOwnReport(@CurrentUser() user: User, @Param('id') id: string) {
+    return this.service.deleteOwnReport(String(user._id), id);
   }
 
   @Patch('reports/:id/status')

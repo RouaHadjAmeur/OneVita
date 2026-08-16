@@ -4,6 +4,8 @@ export declare class UpdateProfileDto {
     phoneNumber?: string;
     country?: string;
     city?: string;
+    latitude?: number;
+    longitude?: number;
     hasPhoto?: boolean;
     hasPets?: boolean;
 }

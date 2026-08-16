@@ -52,6 +52,8 @@ let UsersController = class UsersController {
             phoneNumber,
             country: payload.country,
             city: payload.city,
+            latitude: payload.latitude,
+            longitude: payload.longitude,
             hasPhoto: payload.hasPhoto,
             hasPets: payload.hasPets,
         }, file);

@@ -49,24 +49,41 @@ let EnvironmentCareService = class EnvironmentCareService {
         if (description.length < 10)
             throw new common_1.BadRequestException('Please provide a useful description');
         const isVideo = media.mimetype.startsWith('video/');
-        let mediaUrl = '';
-        let mediaUploadStatus = 'uploaded';
+        let mediaUrl;
         try {
-            const upload = isVideo
-                ? await this.cloudinary.uploadAudio(media, 'environment-reports')
-                : await this.cloudinary.uploadImage(media, 'environment-reports');
+            let upload;
+            for (let attempt = 1; attempt <= 2; attempt += 1) {
+                try {
+                    upload = isVideo
+                        ? await this.cloudinary.uploadAudio(media, 'environment-reports')
+                        : await this.cloudinary.uploadImage(media, 'environment-reports');
+                    break;
+                }
+                catch (error) {
+                    if (attempt === 2)
+                        throw error;
+                }
+            }
+            if (!upload.secure_url)
+                throw new Error('Cloudinary returned no media URL');
             mediaUrl = upload.secure_url;
         }
         catch (error) {
-            mediaUploadStatus = 'pending';
-            console.error('Environment report media upload deferred:', error);
+            console.error('Environment report evidence upload failed:', error);
+            if (isVideo) {
+                throw new common_1.ServiceUnavailableException('The evidence video could not be uploaded. Please try again later.');
+            }
+            const mimeType = media.mimetype.startsWith('image/')
+                ? media.mimetype
+                : 'image/jpeg';
+            mediaUrl = `data:${mimeType};base64,${media.buffer.toString('base64')}`;
         }
         const report = await this.environmentReports.create({
             reporter: userId,
             category: body.category,
             description,
             mediaUrl,
-            mediaUploadStatus,
+            mediaUploadStatus: 'uploaded',
             mediaType: isVideo ? 'video' : 'image',
             latitude,
             longitude,
@@ -83,6 +100,46 @@ let EnvironmentCareService = class EnvironmentCareService {
             .lean()
             .exec();
         return reports.map((report) => this.publicReport(report));
+    }
+    async updateOwnReport(userId, id, body) {
+        const report = await this.environmentReports.findOne({
+            _id: id,
+            reporter: userId,
+        });
+        if (!report)
+            throw new common_1.NotFoundException('Report not found');
+        const categories = ['illegal_waste', 'water_pollution', 'unsafe_drinking_water', 'unsafe_food', 'air_pollution', 'dead_animal', 'chemical_spill', 'burning_waste', 'oil_leakage', 'construction_waste', 'noise_pollution', 'other'];
+        if (body.category !== undefined) {
+            if (!categories.includes(body.category)) {
+                throw new common_1.BadRequestException('Invalid report category');
+            }
+            report.category = body.category;
+        }
+        if (body.description !== undefined) {
+            const description = String(body.description).trim();
+            if (description.length < 10) {
+                throw new common_1.BadRequestException('Please provide a useful description');
+            }
+            report.description = description;
+        }
+        if (body.address !== undefined) {
+            report.address = String(body.address).trim().slice(0, 1000);
+        }
+        report.severity = this.reportSeverity(report.category, report.description);
+        await report.save();
+        return this.publicReport(report.toObject());
+    }
+    async deleteOwnReport(userId, id) {
+        const report = await this.environmentReports.findOneAndDelete({
+            _id: id,
+            reporter: userId,
+        });
+        if (!report)
+            throw new common_1.NotFoundException('Report not found');
+        if (report.mediaUrl) {
+            await this.cloudinary.deleteByUrl(report.mediaUrl).catch((error) => console.error('Could not delete report evidence from Cloudinary:', error));
+        }
+        return { deleted: true, id };
     }
     async updateReportStatus(role, id, body) {
         if (role !== 'admin')

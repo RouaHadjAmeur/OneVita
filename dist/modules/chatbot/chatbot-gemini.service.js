@@ -225,21 +225,26 @@ let ChatbotGeminiService = ChatbotGeminiService_1 = class ChatbotGeminiService {
                         this.logger.warn(`⚠️ Thoughts tokens used: ${usage.thoughtsTokenCount} (leaves only ${actualOutputTokens} tokens for actual output)`);
                     }
                 }
-                const text = candidate.content?.parts?.[0]?.text;
+                const text = candidate.content?.parts
+                    ?.map((part) => part.text || '')
+                    .join('')
+                    .trim();
                 if (candidate.finishReason && candidate.finishReason !== 'STOP') {
                     this.logger.warn(`⚠️ Finish reason: ${candidate.finishReason}`);
                     if (candidate.finishReason === 'MAX_TOKENS' &&
-                        (!text || text.trim().length === 0) &&
                         attempt < maxRetries - 1) {
                         const thoughtsTokens = response.data.usageMetadata?.thoughtsTokenCount || 0;
                         const newMaxTokens = Math.min(Math.max(thoughtsTokens + 500, maxTokens * 2), 8000);
-                        this.logger.log(`🔄 MAX_TOKENS hit with no output. Increasing maxOutputTokens from ${maxTokens} to ${newMaxTokens} for retry`);
+                        this.logger.log(`🔄 Incomplete MAX_TOKENS response. Increasing maxOutputTokens from ${maxTokens} to ${newMaxTokens} and regenerating`);
                         requestBody.generationConfig = {
                             ...requestBody.generationConfig,
                             maxOutputTokens: newMaxTokens,
                         };
                         maxTokens = newMaxTokens;
                         continue;
+                    }
+                    if (candidate.finishReason === 'MAX_TOKENS') {
+                        throw new Error('Gemini response remained incomplete after token-limit retries');
                     }
                 }
                 if (!text || text.trim().length === 0) {
@@ -385,7 +390,10 @@ let ChatbotGeminiService = ChatbotGeminiService_1 = class ChatbotGeminiService {
                     throw new Error('No candidates in Gemini Vision API response');
                 }
                 const candidate = response.data.candidates[0];
-                const text = candidate.content?.parts?.[0]?.text;
+                const text = candidate.content?.parts
+                    ?.map((part) => part.text || '')
+                    .join('')
+                    .trim();
                 if (!text || text.trim().length === 0) {
                     throw new Error('Empty response from Gemini Vision API');
                 }
@@ -524,7 +532,10 @@ let ChatbotGeminiService = ChatbotGeminiService_1 = class ChatbotGeminiService {
                     throw new Error('No candidates in Gemini Vision API response');
                 }
                 const candidate = response.data.candidates[0];
-                const text = candidate.content?.parts?.[0]?.text;
+                const text = candidate.content?.parts
+                    ?.map((part) => part.text || '')
+                    .join('')
+                    .trim();
                 if (!text || text.trim().length === 0) {
                     throw new Error('Empty response from Gemini Vision API');
                 }

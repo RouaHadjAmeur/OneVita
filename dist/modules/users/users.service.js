@@ -79,6 +79,10 @@ let UsersService = class UsersService {
                 payload.country = update.country;
             if (update.city !== undefined)
                 payload.city = update.city;
+            if (update.latitude !== undefined)
+                payload.latitude = update.latitude;
+            if (update.longitude !== undefined)
+                payload.longitude = update.longitude;
             if (update.hasPhoto !== undefined)
                 payload.hasPhoto = update.hasPhoto;
             if (update.hasPets !== undefined)

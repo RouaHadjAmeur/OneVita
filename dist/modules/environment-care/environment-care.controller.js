@@ -33,6 +33,12 @@ let EnvironmentCareController = class EnvironmentCareController {
     reports(mine, user) {
         return this.service.getReports(mine === 'true' ? String(user._id) : undefined);
     }
+    updateOwnReport(user, id, body) {
+        return this.service.updateOwnReport(String(user._id), id, body);
+    }
+    deleteOwnReport(user, id) {
+        return this.service.deleteOwnReport(String(user._id), id);
+    }
     updateReportStatus(request, id, body) {
         return this.service.updateReportStatus(request.user.role, id, body);
     }
@@ -73,6 +79,23 @@ __decorate([
     __metadata("design:paramtypes", [String, user_schema_1.User]),
     __metadata("design:returntype", void 0)
 ], EnvironmentCareController.prototype, "reports", null);
+__decorate([
+    (0, common_1.Patch)('reports/:id'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)('id')),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [user_schema_1.User, String, Object]),
+    __metadata("design:returntype", void 0)
+], EnvironmentCareController.prototype, "updateOwnReport", null);
+__decorate([
+    (0, common_1.Delete)('reports/:id'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [user_schema_1.User, String]),
+    __metadata("design:returntype", void 0)
+], EnvironmentCareController.prototype, "deleteOwnReport", null);
 __decorate([
     (0, common_1.Patch)('reports/:id/status'),
     __param(0, (0, common_1.Request)()),

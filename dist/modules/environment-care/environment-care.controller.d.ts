@@ -66,6 +66,25 @@ export declare class EnvironmentCareController {
         authorityNote: any;
         createdAt: any;
     }[]>;
+    updateOwnReport(user: User, id: string, body: any): Promise<{
+        id: string;
+        category: any;
+        description: any;
+        mediaUrl: any;
+        mediaUploadStatus: any;
+        mediaType: any;
+        latitude: number;
+        longitude: number;
+        address: any;
+        status: any;
+        severity: any;
+        authorityNote: any;
+        createdAt: any;
+    }>;
+    deleteOwnReport(user: User, id: string): Promise<{
+        deleted: boolean;
+        id: string;
+    }>;
     updateReportStatus(request: any, id: string, body: any): Promise<{
         id: string;
         category: any;

@@ -14,6 +14,8 @@ const pet_schema_1 = require("../pets/schemas/pet.schema");
 const human_health_profile_schema_1 = require("../human-health/schemas/human-health-profile.schema");
 const environment_care_controller_1 = require("./environment-care.controller");
 const environment_care_service_1 = require("./environment-care.service");
+const water_quality_controller_1 = require("./water-quality.controller");
+const water_quality_service_1 = require("./water-quality.service");
 const cloudinary_module_1 = require("../cloudinary/cloudinary.module");
 const environment_report_schema_1 = require("./schemas/environment-report.schema");
 let EnvironmentCareModule = class EnvironmentCareModule {
@@ -31,8 +33,8 @@ exports.EnvironmentCareModule = EnvironmentCareModule = __decorate([
             ]),
             cloudinary_module_1.CloudinaryModule,
         ],
-        controllers: [environment_care_controller_1.EnvironmentCareController],
-        providers: [environment_care_service_1.EnvironmentCareService],
+        controllers: [environment_care_controller_1.EnvironmentCareController, water_quality_controller_1.WaterQualityController],
+        providers: [environment_care_service_1.EnvironmentCareService, water_quality_service_1.WaterQualityService],
     })
 ], EnvironmentCareModule);
 //# sourceMappingURL=environment-care.module.js.map
